@@ -1,0 +1,1 @@
+# makro_all_store
