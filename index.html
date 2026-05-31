@@ -1,0 +1,1958 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#E8231A">
+<title>Makro — ระบบคิวรถขนส่งสินค้า</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Kanit:wght@500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- Firebase SDKs (compat — ใช้ได้ใน HTML ธรรมดา ไม่ต้อง bundler) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+/* =====================================================
+   ROOT & RESET
+===================================================== */
+:root{
+  /* ── Red-Orange brand palette ── */
+  --P:#E8231A;          /* primary red */
+  --PL:#FFF0EE;         /* primary light blush */
+  --PD:#A50D1E;         /* primary dark crimson */
+  --PG:linear-gradient(135deg,#E8152A 0%,#E8341A 50%,#F55A1E 100%); /* gradient */
+  --A:#FF8C00;          /* amber accent */
+  --AL:#FFF4E0;
+  --G:#00A86B; --GL:#e6f7f1;   /* success green — keep semantic */
+  --IN:#9B2335; --INL:#FFE8EA; /* indigo slot → dark rose */
+  --W:#F59E0B; --D:#B91C1C;    /* warning / danger */
+  --BG:#FDF3F2;         /* page background — very warm off-white */
+  --SUR:#ffffff;
+  --SUR2:#FDF6F5;       /* card secondary bg */
+  --BD:#F5D5D2;         /* border — warm pink-grey */
+  --TX:#1A0A08;         /* near-black with warm tint */
+  --TX2:#6B2A24;        /* body text — dark rose-brown */
+  --TX3:#B07A74;        /* muted text */
+  --SH0:0 1px 3px rgba(180,30,20,.07);
+  --SH1:0 4px 16px rgba(180,30,20,.12);
+  --SH2:0 12px 40px rgba(180,30,20,.18);
+  --R:16px; --RS:10px; --RX:6px;
+  /* safe-area for notched phones */
+  --sat:env(safe-area-inset-top,0px);
+  --sar:env(safe-area-inset-right,0px);
+  --sab:env(safe-area-inset-bottom,0px);
+  --sal:env(safe-area-inset-left,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+body{font-family:'Sarabun',sans-serif;background:var(--BG);color:var(--TX);min-height:100%;
+  /* prevent iOS double-tap zoom */
+  touch-action:manipulation;
+}
+input,select,textarea,button{font-family:inherit;font-size:inherit;-webkit-appearance:none;appearance:none;}
+/* prevent iOS input zoom (font-size>=16px) */
+input,select,textarea{font-size:16px;}
+
+/* =====================================================
+   LOGIN
+===================================================== */
+#loginScreen{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(145deg,#1A0305,#8B0D18 45%,#C82010 75%,#E8451A 100%);
+  padding:20px calc(20px + var(--sal)) 20px calc(20px + var(--sar));
+  position:relative;overflow:hidden;
+}
+#loginScreen::before{content:'';position:absolute;inset:0;opacity:.04;
+  background:repeating-linear-gradient(45deg,#fff 0,#fff 1px,transparent 0,transparent 50%) 0 0/24px 24px;}
+.lcard{
+  background:rgba(255,255,255,.98);border-radius:24px;
+  padding:clamp(28px,5vw,52px) clamp(24px,6vw,48px);
+  width:100%;max-width:440px;position:relative;z-index:2;
+  box-shadow:0 32px 80px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.1);
+}
+.l-brand{text-align:center;margin-bottom:28px;}
+.l-logo{display:inline-flex;align-items:center;gap:10px;margin-bottom:12px;
+  background:var(--P);color:#fff;padding:10px 22px;border-radius:50px;
+  font-family:'Kanit',sans-serif;font-weight:800;font-size:clamp(18px,4vw,22px);
+  letter-spacing:2px;box-shadow:0 6px 18px rgba(0,85,184,.4);}
+.l-brand h2{font-family:'Kanit',sans-serif;font-size:clamp(14px,3.5vw,17px);font-weight:600;color:var(--TX);}
+.l-brand p{font-size:13px;color:var(--TX3);margin-top:4px;}
+.fg{margin-bottom:16px;}
+.fg label{display:block;font-size:13px;font-weight:700;color:var(--TX2);margin-bottom:6px;}
+.fg input{width:100%;padding:13px 16px;border:2px solid var(--BD);border-radius:var(--RS);
+  font-size:16px;color:var(--TX);background:var(--SUR);transition:all .2s;outline:none;}
+.fg input:focus{border-color:var(--P);box-shadow:0 0 0 4px rgba(232,35,26,.15);}
+.btn-login{width:100%;padding:14px;background:var(--PG);color:#fff;border:none;border-radius:var(--RS);
+  font-family:'Kanit',sans-serif;font-size:17px;font-weight:700;cursor:pointer;transition:all .25s;
+  letter-spacing:1px;margin-top:4px;min-height:52px;box-shadow:0 4px 16px rgba(232,35,26,.4);}
+.btn-login:active{transform:scale(.98);}
+.cred-box{margin-top:16px;padding:14px;background:var(--SUR2);border:1px solid var(--BD);border-radius:var(--RS);}
+.cred-ttl{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--TX2);margin-bottom:10px;}
+.cred-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;}
+.cred-row:last-child{margin-bottom:0;}
+.ctag{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.ctag.dr{background:#FFF3E8;color:#B84500;}
+.ctag.st{background:#E8F5E9;color:#1B6B3A;}
+code{font-family:monospace;background:#EEF0F5;padding:1px 6px;border-radius:4px;font-size:12px;color:var(--TX2);}
+
+/* =====================================================
+   APP SHELL
+===================================================== */
+#app{display:none;flex-direction:column;min-height:100vh;min-height:-webkit-fill-available;}
+
+/* HEADER */
+.hdr{
+  background:var(--SUR);border-bottom:1px solid var(--BD);
+  height:clamp(56px,8vw,66px);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 clamp(12px,3vw,28px);
+  padding-left:calc(clamp(12px,3vw,28px) + var(--sal));
+  padding-right:calc(clamp(12px,3vw,28px) + var(--sar));
+  position:sticky;top:0;z-index:100;box-shadow:var(--SH0);
+  padding-top:var(--sat);
+}
+.hl{display:flex;align-items:center;gap:12px;}
+.h-logo{display:flex;align-items:center;gap:8px;}
+.h-badge{background:var(--P);color:#fff;padding:5px 12px;border-radius:7px;
+  font-family:'Kanit',sans-serif;font-weight:800;font-size:14px;letter-spacing:1.5px;}
+.h-sub{font-size:12px;color:var(--TX3);font-weight:500;}
+.nav-tabs{display:flex;gap:2px;}
+.nav-tab{padding:8px 14px;border-radius:var(--RS);font-size:14px;font-weight:600;cursor:pointer;
+  color:var(--TX2);background:none;border:none;transition:all .2s;display:flex;align-items:center;gap:6px;
+  white-space:nowrap;}
+.nav-tab:hover{background:var(--PL);color:var(--P);}
+.nav-tab.on{background:var(--PL);color:var(--P);}
+.hr{display:flex;align-items:center;gap:10px;}
+.uchip{display:flex;align-items:center;gap:7px;padding:5px 12px;background:var(--SUR2);
+  border:1px solid var(--BD);border-radius:50px;}
+.uav{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:14px;background:var(--PL);}
+.unm{font-size:13px;font-weight:700;color:var(--TX);}
+.url{font-size:11px;color:var(--TX3);}
+.btn-out{padding:7px 14px;border:1px solid var(--BD);border-radius:var(--RS);background:#fff;
+  font-size:13px;cursor:pointer;color:var(--TX2);transition:all .2s;font-weight:600;white-space:nowrap;}
+.btn-out:hover,.btn-out:active{background:#FEF2F2;border-color:var(--D);color:var(--D);}
+
+/* MAIN */
+main#MC{
+  flex:1;padding:clamp(14px,3vw,28px);
+  padding-left:calc(clamp(14px,3vw,28px) + var(--sal));
+  padding-right:calc(clamp(14px,3vw,28px) + var(--sar));
+  padding-bottom:calc(clamp(14px,3vw,28px) + var(--sab) + 72px);
+  max-width:1440px;margin:0 auto;width:100%;
+}
+@media(min-width:769px){main#MC{padding-bottom:clamp(14px,3vw,28px);}}
+
+/* BOTTOM NAV (mobile) */
+.mob-nav{
+  display:none;background:var(--SUR);border-top:1px solid var(--BD);
+  padding:6px 10px;
+  padding-bottom:calc(6px + var(--sab));
+  gap:2px;position:fixed;bottom:0;left:0;right:0;z-index:100;
+  box-shadow:0 -2px 10px rgba(0,0,0,.06);
+}
+.mb{flex:1;text-align:center;padding:8px 4px;border-radius:10px;font-size:10px;font-weight:700;
+  color:var(--TX3);cursor:pointer;background:none;border:none;transition:all .15s;
+  min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.mb .mi{font-size:22px;display:block;margin-bottom:2px;}
+.mb.on{background:var(--PL);color:var(--PD);font-weight:800;}
+
+/* =====================================================
+   ANIMATIONS
+===================================================== */
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fadeUp .28s ease forwards;}
+
+/* =====================================================
+   SHARED COMPONENTS
+===================================================== */
+.page-hd{margin-bottom:22px;}
+.page-hd h2{font-family:'Kanit',sans-serif;font-size:clamp(18px,4vw,23px);font-weight:700;
+  color:var(--TX);display:flex;align-items:center;gap:10px;}
+.page-hd p{color:var(--TX2);font-size:13px;margin-top:4px;}
+
+/* BUTTONS */
+.btn{padding:10px 20px;border-radius:var(--RS);font-family:'Sarabun',sans-serif;font-size:14px;
+  font-weight:700;cursor:pointer;border:none;transition:all .2s;display:inline-flex;
+  align-items:center;gap:6px;white-space:nowrap;-webkit-user-select:none;user-select:none;}
+.btn:active{transform:scale(.97);}
+.btn-p{background:var(--PG);color:#fff;box-shadow:0 2px 8px rgba(232,35,26,.25);}
+.btn-p:hover{background:var(--PD);box-shadow:0 4px 16px rgba(232,35,26,.4);}
+.btn-s{background:var(--SUR2);color:var(--TX2);border:1px solid var(--BD);}
+.btn-s:hover,.btn-s:active{background:var(--BD);}
+.btn-g{background:var(--G);color:#fff;}
+.btn-g:hover{background:#009060;}
+.btn-d{background:var(--D);color:#fff;}
+.btn-d:hover{background:#dc2626;}
+.btn-sm{padding:7px 12px;font-size:12px;border-radius:var(--RX);}
+.btn-xs{padding:5px 10px;font-size:11px;border-radius:var(--RX);}
+.req{color:var(--D);}
+
+/* FORM */
+.form-card{background:var(--SUR);border-radius:var(--R);padding:clamp(18px,4vw,30px);box-shadow:var(--SH1);}
+.form-card h3{font-family:'Kanit',sans-serif;font-size:15px;font-weight:700;margin-bottom:20px;
+  color:var(--TX);display:flex;align-items:center;gap:8px;}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px;}
+.ff{display:flex;flex-direction:column;gap:7px;}
+.ff label{font-size:13px;font-weight:700;color:var(--TX2);}
+.ff input,.ff select,.ff textarea{
+  padding:13px 14px;border:2px solid var(--BD);border-radius:var(--RS);
+  font-size:16px;color:var(--TX);background:var(--SUR);transition:all .2s;outline:none;
+  /* iOS fix */
+  -webkit-appearance:none;
+}
+.ff input:focus,.ff select:focus,.ff textarea:focus{border-color:var(--P);box-shadow:0 0 0 3px rgba(232,35,26,.12);}
+.ff textarea{resize:vertical;min-height:80px;}
+.ff select{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%233D4F72' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;
+}
+.form-acts{margin-top:22px;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;}
+
+/* GOODS CHIPS */
+.g-chips{display:flex;flex-wrap:wrap;gap:8px;}
+.g-chip{padding:9px 13px;border:2px solid var(--BD);border-radius:var(--RS);cursor:pointer;
+  font-size:14px;font-weight:600;color:var(--TX2);transition:all .15s;background:var(--SUR2);
+  display:flex;align-items:center;gap:6px;-webkit-user-select:none;user-select:none;
+  min-height:44px;/* iOS touch target */}
+.g-chip:hover,.g-chip:active{border-color:var(--P);color:var(--PD);background:var(--PL);}
+.g-chip.on{border-color:var(--P);background:var(--PL);color:var(--PD);font-weight:700;}
+
+/* QUEUE BANNER */
+.q-banner{background:var(--PG);color:#fff;border-radius:var(--R);
+  padding:clamp(20px,4vw,26px) clamp(20px,4vw,32px);margin-bottom:20px;
+  display:flex;align-items:center;justify-content:space-between;
+  box-shadow:0 8px 28px rgba(232,35,26,.38);position:relative;overflow:hidden;}
+.q-banner::before{content:'';position:absolute;right:-20px;top:-40px;width:180px;height:180px;
+  border-radius:50%;background:rgba(255,255,255,.07);}
+.qb-lbl{font-size:14px;opacity:.8;margin-bottom:6px;}
+.qb-num{font-family:'Kanit',sans-serif;font-size:clamp(44px,10vw,60px);font-weight:800;line-height:1;letter-spacing:-1px;}
+.qb-dt{font-size:13px;opacity:.7;margin-top:6px;}
+.qb-ico{font-size:clamp(44px,10vw,60px);opacity:.2;}
+
+/* =====================================================
+   STATS GRID
+===================================================== */
+.stats-grid{display:grid;gap:14px;margin-bottom:20px;
+  grid-template-columns:repeat(4,1fr);}
+.stat{background:var(--SUR);border-radius:var(--R);padding:clamp(16px,3vw,22px) clamp(14px,3vw,22px);
+  box-shadow:var(--SH0);border-top:4px solid transparent;transition:all .2s;position:relative;overflow:hidden;}
+.stat.clickable{cursor:pointer;}
+.stat.clickable:hover,.stat.clickable:active{transform:translateY(-2px);box-shadow:var(--SH1);}
+.stat-lbl{font-size:11px;color:var(--TX3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.stat-val{font-family:'Kanit',sans-serif;font-size:clamp(28px,6vw,36px);font-weight:800;color:var(--TX);line-height:1;}
+.stat-sub{font-size:12px;color:var(--TX3);margin-top:4px;}
+.stat-hint{font-size:11px;color:var(--P);margin-top:6px;font-weight:700;opacity:.9;}
+.c-blue{border-top-color:var(--P);}
+.c-orange{border-top-color:var(--A);}
+.c-indigo{border-top-color:var(--IN);}
+.c-green{border-top-color:var(--G);}
+
+/* =====================================================
+   CHARTS
+===================================================== */
+.chart-card{background:var(--SUR);border-radius:var(--R);padding:clamp(18px,3vw,26px);
+  box-shadow:var(--SH1);margin-bottom:18px;}
+.chart-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;
+  flex-wrap:wrap;gap:8px;}
+.chart-hd h3{font-family:'Kanit',sans-serif;font-size:clamp(14px,3.5vw,16px);font-weight:700;}
+.bar-wrap{display:flex;align-items:flex-end;gap:5px;height:clamp(130px,22vw,170px);padding:0 2px;}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;}
+.bar-v{font-size:clamp(10px,2vw,12px);font-weight:800;color:var(--PD);min-height:14px;text-align:center;}
+.bar-b{width:100%;border-radius:4px 4px 0 0;min-height:4px;transition:height .5s cubic-bezier(.34,1.56,.64,1);}
+.bar-b.td{background:linear-gradient(180deg,#F55A1E,#E8152A);}
+.bar-b.pt{background:var(--P);opacity:.55;}
+.bar-ax{font-size:clamp(9px,2vw,11px);color:var(--TX3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;text-align:center;}
+
+/* =====================================================
+   TABLE
+===================================================== */
+.table-card{background:var(--SUR);border-radius:var(--R);box-shadow:var(--SH1);overflow:hidden;}
+
+/* TOOLBAR – 2-row layout on mobile */
+.table-toolbar{padding:14px 16px;border-bottom:1px solid var(--BD);display:flex;flex-direction:column;gap:10px;}
+.tbar-r1{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.tbar-r2{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;}
+.tbar-r2-left{display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex:1;}
+.tbar-r2-right{display:flex;gap:8px;align-items:center;flex-shrink:0;}
+
+.srch-box{position:relative;flex:1;min-width:min(100%,180px);max-width:280px;}
+.srch-box input{width:100%;padding:10px 14px 10px 36px;border:1.5px solid var(--BD);border-radius:var(--RS);
+  font-size:14px;outline:none;transition:border-color .2s;background:#fff;min-height:42px;}
+.srch-box input:focus{border-color:var(--P);box-shadow:0 0 0 3px rgba(232,35,26,.12);}
+.srch-box::before{content:'🔍';position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  font-size:13px;pointer-events:none;}
+
+.flt-sel{padding:10px 30px 10px 12px;border:1.5px solid var(--BD);border-radius:var(--RS);
+  font-size:14px;background:#fff;cursor:pointer;outline:none;min-height:42px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%233D4F72' d='M5 6L0 0h10z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 8px center;}
+.flt-sel:focus{border-color:var(--P);}
+
+.date-in{padding:10px 12px;border:1.5px solid var(--BD);border-radius:var(--RS);
+  font-size:14px;outline:none;transition:border-color .2s;background:#fff;
+  max-width:148px;min-height:42px;}
+.date-in:focus{border-color:var(--P);}
+
+.tbl-cnt{font-size:13px;color:var(--TX3);font-weight:600;white-space:nowrap;}
+#rCnt{font-weight:800;color:var(--P);}
+
+/* FILTER TAGS */
+.ftags{display:none;flex-wrap:wrap;gap:6px;padding:10px 16px 4px;}
+.ftag{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;
+  background:var(--PL);color:var(--P);border-radius:20px;font-size:12px;font-weight:700;}
+.ftag button{background:none;border:none;cursor:pointer;color:var(--PD);font-size:14px;
+  line-height:1;padding:0;opacity:.7;min-width:18px;min-height:18px;}
+
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+table{width:100%;border-collapse:collapse;font-size:clamp(12px,2.5vw,13.5px);}
+thead{background:var(--SUR2);}
+thead th{padding:10px 12px;text-align:left;font-size:11px;font-weight:800;color:var(--TX2);
+  text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--BD);white-space:nowrap;}
+tbody tr{border-bottom:1px solid var(--BD);transition:background .12s;}
+tbody tr:hover,tbody tr:active{background:var(--PL);}
+tbody td{padding:11px 12px;color:var(--TX);vertical-align:middle;}
+
+.q-bdg{display:inline-flex;align-items:center;justify-content:center;background:var(--PG);color:#fff;
+  border-radius:7px;font-family:'Kanit',sans-serif;font-weight:800;font-size:13px;
+  width:38px;height:28px;}
+.s-bdg{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;
+  font-size:11px;font-weight:700;white-space:nowrap;}
+.s-w{background:#FEF3C7;color:#92400E;}
+.s-r{background:#DBEAFE;color:#1E40AF;}
+.s-d{background:#D1FAE5;color:#065F46;}
+.g-tag{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:5px;
+  font-size:11px;font-weight:600;background:var(--PL);color:var(--P);}
+.br-tag{font-size:10px;font-weight:800;background:var(--PL);color:var(--PD);padding:2px 6px;border-radius:4px;}
+.acts{display:flex;gap:5px;}
+
+.sts-sel{
+  padding:6px 24px 6px 9px;border:1.5px solid var(--BD);border-radius:6px;font-size:11px;
+  font-weight:700;cursor:pointer;outline:none;background:#fff;min-height:32px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath fill='%233D4F72' d='M4 5L0 0h8z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 6px center;transition:border-color .2s;}
+.sts-sel:focus{border-color:var(--P);}
+
+.recent-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:4px;}
+
+/* =====================================================
+   MODAL
+===================================================== */
+.modal-ov{position:fixed;inset:0;background:rgba(5,15,50,.55);backdrop-filter:blur(3px);
+  -webkit-backdrop-filter:blur(3px);z-index:200;display:none;align-items:flex-end;justify-content:center;
+  padding:0;}
+@media(min-width:600px){.modal-ov{align-items:center;padding:20px;}}
+.modal-ov.open{display:flex;}
+.modal{background:#fff;border-radius:24px 24px 0 0;padding:24px clamp(16px,4vw,30px);
+  width:100%;max-height:92vh;overflow-y:auto;box-shadow:var(--SH2);
+  animation:slideUp .28s ease;
+  padding-bottom:calc(24px + var(--sab));}
+@media(min-width:600px){.modal{border-radius:var(--R);max-width:700px;animation:fadeUp .25s ease;padding-bottom:30px;}}
+@keyframes slideUp{from{transform:translateY(60px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;}
+.modal-hd h3{font-family:'Kanit',sans-serif;font-size:clamp(16px,4vw,19px);font-weight:700;}
+.modal-x{background:var(--SUR2);border:1px solid var(--BD);border-radius:50%;width:34px;height:34px;
+  display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;
+  color:var(--TX2);transition:all .2s;flex-shrink:0;}
+.modal-x:hover,.modal-x:active{background:#FEF2F2;border-color:var(--D);color:var(--D);}
+
+/* =====================================================
+   TOAST
+===================================================== */
+.toast{position:fixed;bottom:calc(28px + var(--sab));right:clamp(14px,4vw,28px);
+  left:clamp(14px,4vw,auto);
+  padding:13px 20px;border-radius:var(--RS);font-size:14px;font-weight:700;
+  box-shadow:var(--SH2);z-index:300;display:flex;align-items:center;gap:10px;
+  transform:translateY(90px);opacity:0;transition:all .38s cubic-bezier(.34,1.56,.64,1);
+  max-width:calc(100vw - 28px);}
+@media(min-width:600px){.toast{left:auto;max-width:380px;}}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.ok{background:var(--G);color:#fff;}
+.toast.err{background:var(--D);color:#fff;}
+
+.empty{text-align:center;padding:48px 24px;color:var(--TX3);}
+.empty .ei{font-size:48px;margin-bottom:12px;}
+.empty p{font-size:15px;}
+
+/* =====================================================
+   HEAD OFFICE DASHBOARD
+===================================================== */
+.ho-filter{background:var(--SUR);border-radius:var(--R);padding:18px 20px;box-shadow:var(--SH1);margin-bottom:18px;}
+.ho-filter-row{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;}
+.ho-fld{display:flex;flex-direction:column;gap:6px;}
+.ho-fld label{font-size:12px;font-weight:700;color:var(--TX2);}
+.ho-fld .date-in,.ho-fld .flt-sel{max-width:none;width:100%;min-width:150px;}
+.ho-filter-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--BD);}
+.ho-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
+.ho-tab{padding:10px 18px;border-radius:var(--RS);font-family:'Kanit',sans-serif;font-size:14px;font-weight:600;
+  cursor:pointer;color:var(--TX2);background:var(--SUR);border:1.5px solid var(--BD);transition:all .2s;}
+.ho-tab:hover{border-color:var(--P);color:var(--P);}
+.ho-tab.on{background:var(--PG);color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(232,35,26,.3);}
+
+/* =====================================================
+   RESPONSIVE BREAKPOINTS
+===================================================== */
+
+/* Large tablet / Desktop */
+@media(min-width:1024px){
+  .h-sub{display:block;}
+  .unm,.url{display:block;}
+  .nav-tabs{display:flex;}
+  .mob-nav{display:none;}
+  .stats-grid{grid-template-columns:repeat(4,1fr);}
+  .hdr{height:66px;}
+}
+
+/* Tablet (portrait + landscape) */
+@media(min-width:600px) and (max-width:1023px){
+  .nav-tabs{display:flex;}
+  .mob-nav{display:none;}
+  .stats-grid{grid-template-columns:repeat(2,1fr);}
+  .h-sub{display:none;}
+  .unm{display:block;}
+  .url{display:none;}
+}
+
+/* Phone */
+@media(max-width:599px){
+  .nav-tabs{display:none;}
+  .mob-nav{display:flex;}
+  .stats-grid{grid-template-columns:repeat(2,1fr);}
+  .stats-grid[style*="repeat(5"]{grid-template-columns:repeat(2,1fr) !important;}
+  .ho-fld{flex:1;min-width:calc(50% - 7px);}
+  .h-sub{display:none;}
+  .unm,.url{display:none;}
+  .uchip{padding:5px 8px;}
+  .tbar-r1{flex-direction:column;align-items:stretch;}
+  .srch-box{max-width:100%;}
+  .flt-sel{flex:1;}
+  .tbar-r2-left{flex-wrap:wrap;}
+  .date-in{max-width:calc(50% - 14px);min-width:120px;flex:1;}
+  .form-grid{grid-template-columns:1fr;}
+  .ff[style*="grid-column"]{grid-column:1/-1 !important;}
+}
+
+/* Landscape phone */
+@media(max-width:896px) and (orientation:landscape) and (max-height:500px){
+  .hdr{height:52px;padding-top:0;}
+  main#MC{padding-bottom:calc(14px + var(--sab) + 60px);}
+  .mob-nav{padding:4px 10px;padding-bottom:calc(4px + var(--sab));}
+  .mb{min-height:44px;}
+  .qb-num{font-size:36px;}
+  .q-banner{padding:16px 20px;}
+  .stats-grid{grid-template-columns:repeat(4,1fr);gap:10px;}
+  .stat{padding:14px;}
+  .stat-val{font-size:26px;}
+  .bar-wrap{height:100px;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="lcard">
+    <div class="l-brand">
+      <div class="l-logo">🏬 MAKRO</div>
+      <h2>ระบบคิวรถขนส่งสินค้า</h2>
+      <p>Delivery Queue Management System</p>
+    </div>
+    <div class="fg"><label>👤 ชื่อผู้ใช้งาน</label>
+      <input type="text" id="lu" placeholder="เช่น staff001 หรือ makro001" autocomplete="username" autocorrect="off" autocapitalize="off"/></div>
+    <div class="fg"><label>🔒 รหัสผ่าน</label>
+      <input type="password" id="lp" placeholder="รหัสผ่านประจำสาขา" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+    <button class="btn-login" onclick="doLogin()">เข้าสู่ระบบ →</button>
+    <div class="cred-box">
+      <div class="cred-ttl">รูปแบบการเข้าสู่ระบบ</div>
+      <div class="cred-row">
+        <span class="ctag st">📋 เจ้าหน้าที่สาขา</span>
+        <span style="font-size:12px;color:var(--TX2)">User: <code>staff001</code> Pass: <code>st001</code></span>
+      </div>
+      <div class="cred-row">
+        <span class="ctag dr">🚛 พนักงานขนส่ง</span>
+        <span style="font-size:12px;color:var(--TX2)">User: <code>makro001</code> Pass: <code>mk001</code></span>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:var(--TX3)">เลข 3 หลักท้าย = รหัสสาขา เช่น สาขาเชียงใหม่ = 006</div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header class="hdr">
+    <div class="hl">
+      <div class="h-logo"><div class="h-badge">MAKRO</div><span class="h-sub">ระบบคิวขนส่ง</span></div>
+      <nav class="nav-tabs" id="navTabs"></nav>
+    </div>
+    <div class="hr">
+      <div class="uchip">
+        <div class="uav" id="hAv">—</div>
+        <div><div class="unm" id="hNm">—</div><div class="url" id="hRl">—</div></div>
+      </div>
+      <button class="btn-out" onclick="doLogout()">ออก</button>
+    </div>
+  </header>
+  <main id="MC"></main>
+  <nav class="mob-nav" id="mobNav"></nav>
+</div>
+
+<!-- MODAL -->
+<div class="modal-ov" id="MOV">
+  <div class="modal">
+    <div class="modal-hd"><h3 id="mTtl">—</h3><button class="modal-x" onclick="closeMod()">✕</button></div>
+    <div id="mBody"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast ok" id="toast"><span id="tMsg">—</span></div>
+
+<script>
+/* ============================================================
+   CONSTANTS
+============================================================ */
+const USERS={
+  // ── Head Office (ส่วนกลาง) — เห็นทุกสาขา ลบ/แก้ไขได้ทุกอย่าง ──
+  'headoffice':{pass:'ho@2026',role:'head',name:'Head Office',brId:'HO',av:'🏢'},
+  'audit':{pass:'audit@2026',role:'head',name:'ฝ่ายตรวจสอบสาขา',brId:'HO',av:'🔍'},
+  'staff001':{pass:'st001',role:'staff',name:'สาขาลาดพร้าว',brId:'001',av:'📋'},
+  'makro001':{pass:'mk001',role:'driver',name:'สาขาลาดพร้าว',brId:'001',av:'🚛'},
+  'staff002':{pass:'st002',role:'staff',name:'สาขาแจ้งวัฒนะ',brId:'002',av:'📋'},
+  'makro002':{pass:'mk002',role:'driver',name:'สาขาแจ้งวัฒนะ',brId:'002',av:'🚛'},
+  'staff003':{pass:'st003',role:'staff',name:'สาขาศรีนครินทร์',brId:'003',av:'📋'},
+  'makro003':{pass:'mk003',role:'driver',name:'สาขาศรีนครินทร์',brId:'003',av:'🚛'},
+  'staff004':{pass:'st004',role:'staff',name:'สาขาบางบอน',brId:'004',av:'📋'},
+  'makro004':{pass:'mk004',role:'driver',name:'สาขาบางบอน',brId:'004',av:'🚛'},
+  'staff005':{pass:'st005',role:'staff',name:'สาขาชลบุรี',brId:'005',av:'📋'},
+  'makro005':{pass:'mk005',role:'driver',name:'สาขาชลบุรี',brId:'005',av:'🚛'},
+  'staff006':{pass:'st006',role:'staff',name:'สาขาเชียงใหม่',brId:'006',av:'📋'},
+  'makro006':{pass:'mk006',role:'driver',name:'สาขาเชียงใหม่',brId:'006',av:'🚛'},
+  'staff007':{pass:'st007',role:'staff',name:'สาขานครราชสีมา',brId:'007',av:'📋'},
+  'makro007':{pass:'mk007',role:'driver',name:'สาขานครราชสีมา',brId:'007',av:'🚛'},
+  'staff008':{pass:'st008',role:'staff',name:'สาขารังสิต',brId:'008',av:'📋'},
+  'makro008':{pass:'mk008',role:'driver',name:'สาขารังสิต',brId:'008',av:'🚛'},
+  'staff009':{pass:'st009',role:'staff',name:'สาขาหาดใหญ่',brId:'009',av:'📋'},
+  'makro009':{pass:'mk009',role:'driver',name:'สาขาหาดใหญ่',brId:'009',av:'🚛'},
+  'staff010':{pass:'st010',role:'staff',name:'สาขาอุดรธานี',brId:'010',av:'📋'},
+  'makro010':{pass:'mk010',role:'driver',name:'สาขาอุดรธานี',brId:'010',av:'🚛'},
+  'staff011':{pass:'st011',role:'staff',name:'สาขาพิษณุโลก',brId:'011',av:'📋'},
+  'makro011':{pass:'mk011',role:'driver',name:'สาขาพิษณุโลก',brId:'011',av:'🚛'},
+  'staff012':{pass:'st012',role:'staff',name:'สาขาขอนแก่น',brId:'012',av:'📋'},
+  'makro012':{pass:'mk012',role:'driver',name:'สาขาขอนแก่น',brId:'012',av:'🚛'},
+  'staff013':{pass:'st013',role:'staff',name:'สาขาสุราษฎร์ธานี',brId:'013',av:'📋'},
+  'makro013':{pass:'mk013',role:'driver',name:'สาขาสุราษฎร์ธานี',brId:'013',av:'🚛'},
+  'staff014':{pass:'st014',role:'staff',name:'สาขาอุบลราชธานี',brId:'014',av:'📋'},
+  'makro014':{pass:'mk014',role:'driver',name:'สาขาอุบลราชธานี',brId:'014',av:'🚛'},
+  'staff015':{pass:'st015',role:'staff',name:'สาขาระยอง',brId:'015',av:'📋'},
+  'makro015':{pass:'mk015',role:'driver',name:'สาขาระยอง',brId:'015',av:'🚛'},
+  'staff016':{pass:'st016',role:'staff',name:'สาขานครสวรรค์',brId:'016',av:'📋'},
+  'makro016':{pass:'mk016',role:'driver',name:'สาขานครสวรรค์',brId:'016',av:'🚛'},
+  'staff017':{pass:'st017',role:'staff',name:'สาขาจรัญสนิทวงศ์',brId:'017',av:'📋'},
+  'makro017':{pass:'mk017',role:'driver',name:'สาขาจรัญสนิทวงศ์',brId:'017',av:'🚛'},
+  'staff018':{pass:'st018',role:'staff',name:'สาขาสาทร',brId:'018',av:'📋'},
+  'makro018':{pass:'mk018',role:'driver',name:'สาขาสาทร',brId:'018',av:'🚛'},
+  'staff019':{pass:'st019',role:'staff',name:'สาขานครปฐม',brId:'019',av:'📋'},
+  'makro019':{pass:'mk019',role:'driver',name:'สาขานครปฐม',brId:'019',av:'🚛'},
+  'staff020':{pass:'st020',role:'staff',name:'สาขาสุรินทร์',brId:'020',av:'📋'},
+  'makro020':{pass:'mk020',role:'driver',name:'สาขาสุรินทร์',brId:'020',av:'🚛'},
+  'staff021':{pass:'st021',role:'staff',name:'สาขาสามเสน',brId:'021',av:'📋'},
+  'makro021':{pass:'mk021',role:'driver',name:'สาขาสามเสน',brId:'021',av:'🚛'},
+  'staff022':{pass:'st022',role:'staff',name:'สาขานครศรีธรรมราช',brId:'022',av:'📋'},
+  'makro022':{pass:'mk022',role:'driver',name:'สาขานครศรีธรรมราช',brId:'022',av:'🚛'},
+  'staff023':{pass:'st023',role:'staff',name:'สาขาเชียงราย',brId:'023',av:'📋'},
+  'makro023':{pass:'mk023',role:'driver',name:'สาขาเชียงราย',brId:'023',av:'🚛'},
+  'staff024':{pass:'st024',role:'staff',name:'สาขาสกลนคร',brId:'024',av:'📋'},
+  'makro024':{pass:'mk024',role:'driver',name:'สาขาสกลนคร',brId:'024',av:'🚛'},
+  'staff025':{pass:'st025',role:'staff',name:'สาขาสุพรรณบุรี',brId:'025',av:'📋'},
+  'makro025':{pass:'mk025',role:'driver',name:'สาขาสุพรรณบุรี',brId:'025',av:'🚛'},
+  'staff026':{pass:'st026',role:'staff',name:'สาขาจันทบุรี',brId:'026',av:'📋'},
+  'makro026':{pass:'mk026',role:'driver',name:'สาขาจันทบุรี',brId:'026',av:'🚛'},
+  'staff027':{pass:'st027',role:'staff',name:'สาขาภูเก็ต',brId:'027',av:'📋'},
+  'makro027':{pass:'mk027',role:'driver',name:'สาขาภูเก็ต',brId:'027',av:'🚛'},
+  'staff028':{pass:'st028',role:'staff',name:'สาขาร้อยเอ็ด',brId:'028',av:'📋'},
+  'makro028':{pass:'mk028',role:'driver',name:'สาขาร้อยเอ็ด',brId:'028',av:'🚛'},
+  'staff029':{pass:'st029',role:'staff',name:'สาขาตรัง',brId:'029',av:'📋'},
+  'makro029':{pass:'mk029',role:'driver',name:'สาขาตรัง',brId:'029',av:'🚛'},
+  'staff030':{pass:'st030',role:'staff',name:'สาขาสระแก้ว',brId:'030',av:'📋'},
+  'makro030':{pass:'mk030',role:'driver',name:'สาขาสระแก้ว',brId:'030',av:'🚛'},
+  'staff031':{pass:'st031',role:'staff',name:'สาขาเกาะสมุย',brId:'031',av:'📋'},
+  'makro031':{pass:'mk031',role:'driver',name:'สาขาเกาะสมุย',brId:'031',av:'🚛'},
+  'staff032':{pass:'st032',role:'staff',name:'สาขาบุรีรัมย์',brId:'032',av:'📋'},
+  'makro032':{pass:'mk032',role:'driver',name:'สาขาบุรีรัมย์',brId:'032',av:'🚛'},
+  'staff033':{pass:'st033',role:'staff',name:'สาขาศรีสะเกษ',brId:'033',av:'📋'},
+  'makro033':{pass:'mk033',role:'driver',name:'สาขาศรีสะเกษ',brId:'033',av:'🚛'},
+  'staff034':{pass:'st034',role:'staff',name:'สาขาลำพูน',brId:'034',av:'📋'},
+  'makro034':{pass:'mk034',role:'driver',name:'สาขาลำพูน',brId:'034',av:'🚛'},
+  'staff035':{pass:'st035',role:'staff',name:'สาขากระบี่',brId:'035',av:'📋'},
+  'makro035':{pass:'mk035',role:'driver',name:'สาขากระบี่',brId:'035',av:'🚛'},
+  'staff036':{pass:'st036',role:'staff',name:'สาขาเพชรบุรี',brId:'036',av:'📋'},
+  'makro036':{pass:'mk036',role:'driver',name:'สาขาเพชรบุรี',brId:'036',av:'🚛'},
+  'staff037':{pass:'st037',role:'staff',name:'สาขาชัยภูมิ',brId:'037',av:'📋'},
+  'makro037':{pass:'mk037',role:'driver',name:'สาขาชัยภูมิ',brId:'037',av:'🚛'},
+  'staff038':{pass:'st038',role:'staff',name:'สาขาสระบุรี',brId:'038',av:'📋'},
+  'makro038':{pass:'mk038',role:'driver',name:'สาขาสระบุรี',brId:'038',av:'🚛'},
+  'staff039':{pass:'st039',role:'staff',name:'สาขาปราณบุรี',brId:'039',av:'📋'},
+  'makro039':{pass:'mk039',role:'driver',name:'สาขาปราณบุรี',brId:'039',av:'🚛'},
+  'staff040':{pass:'st040',role:'staff',name:'สาขาฉะเชิงเทรา',brId:'040',av:'📋'},
+  'makro040':{pass:'mk040',role:'driver',name:'สาขาฉะเชิงเทรา',brId:'040',av:'🚛'},
+  'staff041':{pass:'st041',role:'staff',name:'สาขาเชียงใหม่2',brId:'041',av:'📋'},
+  'makro041':{pass:'mk041',role:'driver',name:'สาขาเชียงใหม่2',brId:'041',av:'🚛'},
+  'staff042':{pass:'st042',role:'staff',name:'สาขารามอินทรา',brId:'042',av:'📋'},
+  'makro042':{pass:'mk042',role:'driver',name:'สาขารามอินทรา',brId:'042',av:'🚛'},
+  'staff043':{pass:'st043',role:'staff',name:'สาขาชุมพร',brId:'043',av:'📋'},
+  'makro043':{pass:'mk043',role:'driver',name:'สาขาชุมพร',brId:'043',av:'🚛'},
+  'staff044':{pass:'st044',role:'staff',name:'สาขาพัทยา',brId:'044',av:'📋'},
+  'makro044':{pass:'mk044',role:'driver',name:'สาขาพัทยา',brId:'044',av:'🚛'},
+  'staff045':{pass:'st045',role:'staff',name:'สาขากำแพงเพชร',brId:'045',av:'📋'},
+  'makro045':{pass:'mk045',role:'driver',name:'สาขากำแพงเพชร',brId:'045',av:'🚛'},
+  'staff046':{pass:'st046',role:'staff',name:'สาขากาญจนบุรี',brId:'046',av:'📋'},
+  'makro046':{pass:'mk046',role:'driver',name:'สาขากาญจนบุรี',brId:'046',av:'🚛'},
+  'staff047':{pass:'st047',role:'staff',name:'สาขาลพบุรี',brId:'047',av:'📋'},
+  'makro047':{pass:'mk047',role:'driver',name:'สาขาลพบุรี',brId:'047',av:'🚛'},
+  'staff048':{pass:'st048',role:'staff',name:'สาขาหนองคาย',brId:'048',av:'📋'},
+  'makro048':{pass:'mk048',role:'driver',name:'สาขาหนองคาย',brId:'048',av:'🚛'},
+  'staff049':{pass:'st049',role:'staff',name:'สาขาราชบุรี',brId:'049',av:'📋'},
+  'makro049':{pass:'mk049',role:'driver',name:'สาขาราชบุรี',brId:'049',av:'🚛'},
+  'staff050':{pass:'st050',role:'staff',name:'สาขาแม่ริม',brId:'050',av:'📋'},
+  'makro050':{pass:'mk050',role:'driver',name:'สาขาแม่ริม',brId:'050',av:'🚛'},
+  'staff051':{pass:'st051',role:'staff',name:'สาขาอยุธยา',brId:'051',av:'📋'},
+  'makro051':{pass:'mk051',role:'driver',name:'สาขาอยุธยา',brId:'051',av:'🚛'},
+  'staff052':{pass:'st052',role:'staff',name:'สาขาลำปาง',brId:'052',av:'📋'},
+  'makro052':{pass:'mk052',role:'driver',name:'สาขาลำปาง',brId:'052',av:'🚛'},
+  'staff053':{pass:'st053',role:'staff',name:'สาขาหัวหิน',brId:'053',av:'📋'},
+  'makro053':{pass:'mk053',role:'driver',name:'สาขาหัวหิน',brId:'053',av:'🚛'},
+  'staff054':{pass:'st054',role:'staff',name:'สาขาคลองหลวง',brId:'054',av:'📋'},
+  'makro054':{pass:'mk054',role:'driver',name:'สาขาคลองหลวง',brId:'054',av:'🚛'},
+  'staff055':{pass:'st055',role:'staff',name:'สาขาเลย',brId:'055',av:'📋'},
+  'makro055':{pass:'mk055',role:'driver',name:'สาขาเลย',brId:'055',av:'🚛'},
+  'staff056':{pass:'st056',role:'staff',name:'สาขาเพชรบูรณ์',brId:'056',av:'📋'},
+  'makro056':{pass:'mk056',role:'driver',name:'สาขาเพชรบูรณ์',brId:'056',av:'🚛'},
+  'staff057':{pass:'st057',role:'staff',name:'สาขาบางพลี',brId:'057',av:'📋'},
+  'makro057':{pass:'mk057',role:'driver',name:'สาขาบางพลี',brId:'057',av:'🚛'},
+  'staff058':{pass:'st058',role:'staff',name:'สาขามุกดาหาร',brId:'058',av:'📋'},
+  'makro058':{pass:'mk058',role:'driver',name:'สาขามุกดาหาร',brId:'058',av:'🚛'},
+  'staff059':{pass:'st059',role:'staff',name:'สาขาสตูล',brId:'059',av:'📋'},
+  'makro059':{pass:'mk059',role:'driver',name:'สาขาสตูล',brId:'059',av:'🚛'},
+  'staff060':{pass:'st060',role:'staff',name:'สาขาตราด',brId:'060',av:'📋'},
+  'makro060':{pass:'mk060',role:'driver',name:'สาขาตราด',brId:'060',av:'🚛'},
+  'staff061':{pass:'st061',role:'staff',name:'สาขาชุมแพ',brId:'061',av:'📋'},
+  'makro061':{pass:'mk061',role:'driver',name:'สาขาชุมแพ',brId:'061',av:'🚛'},
+  'staff062':{pass:'st062',role:'staff',name:'สาขาราไวย์',brId:'062',av:'📋'},
+  'makro062':{pass:'mk062',role:'driver',name:'สาขาราไวย์',brId:'062',av:'🚛'},
+  'staff063':{pass:'st063',role:'staff',name:'สาขานครพนม',brId:'063',av:'📋'},
+  'makro063':{pass:'mk063',role:'driver',name:'สาขานครพนม',brId:'063',av:'🚛'},
+  'staff064':{pass:'st064',role:'staff',name:'สาขาเกาะพะงัน',brId:'064',av:'📋'},
+  'makro064':{pass:'mk064',role:'driver',name:'สาขาเกาะพะงัน',brId:'064',av:'🚛'},
+  'staff065':{pass:'st065',role:'staff',name:'สาขาบึงกาฬ',brId:'065',av:'📋'},
+  'makro065':{pass:'mk065',role:'driver',name:'สาขาบึงกาฬ',brId:'065',av:'🚛'},
+  'staff066':{pass:'st066',role:'staff',name:'สาขาพัทยาเหนือ',brId:'066',av:'📋'},
+  'makro066':{pass:'mk066',role:'driver',name:'สาขาพัทยาเหนือ',brId:'066',av:'🚛'},
+  'staff067':{pass:'st067',role:'staff',name:'สาขาแม่สาย',brId:'067',av:'📋'},
+  'makro067':{pass:'mk067',role:'driver',name:'สาขาแม่สาย',brId:'067',av:'🚛'},
+  'staff068':{pass:'st068',role:'staff',name:'สาขาศาลายา',brId:'068',av:'📋'},
+  'makro068':{pass:'mk068',role:'driver',name:'สาขาศาลายา',brId:'068',av:'🚛'},
+  'staff069':{pass:'st069',role:'staff',name:'สาขาพัทลุง',brId:'069',av:'📋'},
+  'makro069':{pass:'mk069',role:'driver',name:'สาขาพัทลุง',brId:'069',av:'🚛'},
+  'staff070':{pass:'st070',role:'staff',name:'สาขาสุโขทัย',brId:'070',av:'📋'},
+  'makro070':{pass:'mk070',role:'driver',name:'สาขาสุโขทัย',brId:'070',av:'🚛'},
+  'staff071':{pass:'st071',role:'staff',name:'สาขาป่าตอง',brId:'071',av:'📋'},
+  'makro071':{pass:'mk071',role:'driver',name:'สาขาป่าตอง',brId:'071',av:'🚛'},
+  'staff072':{pass:'st072',role:'staff',name:'สาขาสมุทรสาคร',brId:'072',av:'📋'},
+  'makro072':{pass:'mk072',role:'driver',name:'สาขาสมุทรสาคร',brId:'072',av:'🚛'},
+  'staff073':{pass:'st073',role:'staff',name:'สาขาแม่สอด',brId:'073',av:'📋'},
+  'makro073':{pass:'mk073',role:'driver',name:'สาขาแม่สอด',brId:'073',av:'🚛'},
+  'staff074':{pass:'st074',role:'staff',name:'สาขาปากช่อง',brId:'074',av:'📋'},
+  'makro074':{pass:'mk074',role:'driver',name:'สาขาปากช่อง',brId:'074',av:'🚛'},
+  'staff075':{pass:'st075',role:'staff',name:'สาขาถลาง',brId:'075',av:'📋'},
+  'makro075':{pass:'mk075',role:'driver',name:'สาขาถลาง',brId:'075',av:'🚛'},
+  'staff076':{pass:'st076',role:'staff',name:'สาขาระนอง',brId:'076',av:'📋'},
+  'makro076':{pass:'mk076',role:'driver',name:'สาขาระนอง',brId:'076',av:'🚛'},
+  'staff077':{pass:'st077',role:'staff',name:'สาขาละไม',brId:'077',av:'📋'},
+  'makro077':{pass:'mk077',role:'driver',name:'สาขาละไม',brId:'077',av:'🚛'},
+  'staff078':{pass:'st078',role:'staff',name:'สาขากัลปพฤกษ์',brId:'078',av:'📋'},
+  'makro078':{pass:'mk078',role:'driver',name:'สาขากัลปพฤกษ์',brId:'078',av:'🚛'},
+  'staff079':{pass:'st079',role:'staff',name:'สาขายโสธร',brId:'079',av:'📋'},
+  'makro079':{pass:'mk079',role:'driver',name:'สาขายโสธร',brId:'079',av:'🚛'},
+  'staff080':{pass:'st080',role:'staff',name:'สาขามหาสารคาม',brId:'080',av:'📋'},
+  'makro080':{pass:'mk080',role:'driver',name:'สาขามหาสารคาม',brId:'080',av:'🚛'},
+  'staff081':{pass:'st081',role:'staff',name:'สาขาฝาง',brId:'081',av:'📋'},
+  'makro081':{pass:'mk081',role:'driver',name:'สาขาฝาง',brId:'081',av:'🚛'},
+  'staff082':{pass:'st082',role:'staff',name:'สาขานครนายก',brId:'082',av:'📋'},
+  'makro082':{pass:'mk082',role:'driver',name:'สาขานครนายก',brId:'082',av:'🚛'},
+  'staff083':{pass:'st083',role:'staff',name:'สาขานครอินทร์',brId:'083',av:'📋'},
+  'makro083':{pass:'mk083',role:'driver',name:'สาขานครอินทร์',brId:'083',av:'🚛'},
+  'staff084':{pass:'st084',role:'staff',name:'สาขาบ้านเพ',brId:'084',av:'📋'},
+  'makro084':{pass:'mk084',role:'driver',name:'สาขาบ้านเพ',brId:'084',av:'🚛'},
+  'staff085':{pass:'st085',role:'staff',name:'สาขาทุ่งสง',brId:'085',av:'📋'},
+  'makro085':{pass:'mk085',role:'driver',name:'สาขาทุ่งสง',brId:'085',av:'🚛'},
+  'staff086':{pass:'st086',role:'staff',name:'สาขาศรีนครินทร์2',brId:'086',av:'📋'},
+  'makro086':{pass:'mk086',role:'driver',name:'สาขาศรีนครินทร์2',brId:'086',av:'🚛'},
+  'staff087':{pass:'st087',role:'staff',name:'สาขาพะเยา',brId:'087',av:'📋'},
+  'makro087':{pass:'mk087',role:'driver',name:'สาขาพะเยา',brId:'087',av:'🚛'},
+  'staff089':{pass:'st089',role:'staff',name:'สาขาพิษณุโลก2',brId:'089',av:'📋'},
+  'makro089':{pass:'mk089',role:'driver',name:'สาขาพิษณุโลก2',brId:'089',av:'🚛'},
+  'staff096':{pass:'st096',role:'staff',name:'สาขาทาวน์อินทาวน์',brId:'096',av:'📋'},
+  'makro096':{pass:'mk096',role:'driver',name:'สาขาทาวน์อินทาวน์',brId:'096',av:'🚛'},
+  'staff100':{pass:'st100',role:'staff',name:'สาขาแพร่',brId:'100',av:'📋'},
+  'makro100':{pass:'mk100',role:'driver',name:'สาขาแพร่',brId:'100',av:'🚛'},
+  'staff101':{pass:'st101',role:'staff',name:'สาขาเกาะช้าง',brId:'101',av:'📋'},
+  'makro101':{pass:'mk101',role:'driver',name:'สาขาเกาะช้าง',brId:'101',av:'🚛'},
+  'staff102':{pass:'st102',role:'staff',name:'สาขานครราชสีมา2',brId:'102',av:'📋'},
+  'makro102':{pass:'mk102',role:'driver',name:'สาขานครราชสีมา2',brId:'102',av:'🚛'},
+  'staff103':{pass:'st103',role:'staff',name:'สาขาน่าน',brId:'103',av:'📋'},
+  'makro103':{pass:'mk103',role:'driver',name:'สาขาน่าน',brId:'103',av:'🚛'},
+  'staff104':{pass:'st104',role:'staff',name:'สาขาอ่าวนาง',brId:'104',av:'📋'},
+  'makro104':{pass:'mk104',role:'driver',name:'สาขาอ่าวนาง',brId:'104',av:'🚛'},
+  'staff105':{pass:'st105',role:'staff',name:'สาขากะรน',brId:'105',av:'📋'},
+  'makro105':{pass:'mk105',role:'driver',name:'สาขากะรน',brId:'105',av:'🚛'},
+  'staff106':{pass:'st106',role:'staff',name:'สาขาวารินชำราบ',brId:'106',av:'📋'},
+  'makro106':{pass:'mk106',role:'driver',name:'สาขาวารินชำราบ',brId:'106',av:'🚛'},
+  'staff107':{pass:'st107',role:'staff',name:'สาขาหนองบัวลำภู',brId:'107',av:'📋'},
+  'makro107':{pass:'mk107',role:'driver',name:'สาขาหนองบัวลำภู',brId:'107',av:'🚛'},
+  'staff108':{pass:'st108',role:'staff',name:'สาขาหนองจอก',brId:'108',av:'📋'},
+  'makro108':{pass:'mk108',role:'driver',name:'สาขาหนองจอก',brId:'108',av:'🚛'},
+  'staff109':{pass:'st109',role:'staff',name:'สาขาแหลมฉบัง',brId:'109',av:'📋'},
+  'makro109':{pass:'mk109',role:'driver',name:'สาขาแหลมฉบัง',brId:'109',av:'🚛'},
+  'staff110':{pass:'st110',role:'staff',name:'สาขาประจวบคีรีขันธ์',brId:'110',av:'📋'},
+  'makro110':{pass:'mk110',role:'driver',name:'สาขาประจวบคีรีขันธ์',brId:'110',av:'🚛'},
+  'staff111':{pass:'st111',role:'staff',name:'สาขาเพชรเกษม',brId:'111',av:'📋'},
+  'makro111':{pass:'mk111',role:'driver',name:'สาขาเพชรเกษม',brId:'111',av:'🚛'},
+  'staff112':{pass:'st112',role:'staff',name:'สาขาบางปู',brId:'112',av:'📋'},
+  'makro112':{pass:'mk112',role:'driver',name:'สาขาบางปู',brId:'112',av:'🚛'},
+  'staff113':{pass:'st113',role:'staff',name:'สาขาวังหิน',brId:'113',av:'📋'},
+  'makro113':{pass:'mk113',role:'driver',name:'สาขาวังหิน',brId:'113',av:'🚛'},
+  'staff114':{pass:'st114',role:'staff',name:'สาขาสิงห์บุรี',brId:'114',av:'📋'},
+  'makro114':{pass:'mk114',role:'driver',name:'สาขาสิงห์บุรี',brId:'114',av:'🚛'},
+  'staff115':{pass:'st115',role:'staff',name:'สาขาบางบัวทอง',brId:'115',av:'📋'},
+  'makro115':{pass:'mk115',role:'driver',name:'สาขาบางบัวทอง',brId:'115',av:'🚛'},
+  'staff116':{pass:'st116',role:'staff',name:'สาขากาฬสินธุ์',brId:'116',av:'📋'},
+  'makro116':{pass:'mk116',role:'driver',name:'สาขากาฬสินธุ์',brId:'116',av:'🚛'},
+  'staff117':{pass:'st117',role:'staff',name:'สาขาอุดมสุข',brId:'117',av:'📋'},
+  'makro117':{pass:'mk117',role:'driver',name:'สาขาอุดมสุข',brId:'117',av:'🚛'},
+  'staff118':{pass:'st118',role:'staff',name:'สาขารามคำแหง(สัมมากร)',brId:'118',av:'📋'},
+  'makro118':{pass:'mk118',role:'driver',name:'สาขารามคำแหง(สัมมากร)',brId:'118',av:'🚛'},
+  'staff119':{pass:'st119',role:'staff',name:'สาขาพิจิตร',brId:'119',av:'📋'},
+  'makro119':{pass:'mk119',role:'driver',name:'สาขาพิจิตร',brId:'119',av:'🚛'},
+  'staff120':{pass:'st120',role:'staff',name:'สาขาปทุมธานี',brId:'120',av:'📋'},
+  'makro120':{pass:'mk120',role:'driver',name:'สาขาปทุมธานี',brId:'120',av:'🚛'},
+  'staff121':{pass:'st121',role:'staff',name:'สาขาบดินทรเดชา',brId:'121',av:'📋'},
+  'makro121':{pass:'mk121',role:'driver',name:'สาขาบดินทรเดชา',brId:'121',av:'🚛'},
+  'staff122':{pass:'st122',role:'staff',name:'สาขาประชาอุทิศ',brId:'122',av:'📋'},
+  'makro122':{pass:'mk122',role:'driver',name:'สาขาประชาอุทิศ',brId:'122',av:'🚛'},
+  'staff123':{pass:'st123',role:'staff',name:'สาขาสุขุมวิท71',brId:'123',av:'📋'},
+  'makro123':{pass:'mk123',role:'driver',name:'สาขาสุขุมวิท71',brId:'123',av:'🚛'},
+  'staff124':{pass:'st124',role:'staff',name:'สาขานวมินทร์70',brId:'124',av:'📋'},
+  'makro124':{pass:'mk124',role:'driver',name:'สาขานวมินทร์70',brId:'124',av:'🚛'},
+  'staff125':{pass:'st125',role:'staff',name:'สาขาชะอำ',brId:'125',av:'📋'},
+  'makro125':{pass:'mk125',role:'driver',name:'สาขาชะอำ',brId:'125',av:'🚛'},
+  'staff126':{pass:'st126',role:'staff',name:'สาขาอ่อนนุช',brId:'126',av:'📋'},
+  'makro126':{pass:'mk126',role:'driver',name:'สาขาอ่อนนุช',brId:'126',av:'🚛'},
+  'staff127':{pass:'st127',role:'staff',name:'สาขาสุขสวัสดิ์',brId:'127',av:'📋'},
+  'makro127':{pass:'mk127',role:'driver',name:'สาขาสุขสวัสดิ์',brId:'127',av:'🚛'},
+  'staff128':{pass:'st128',role:'staff',name:'สาขากบินทร์บุรี',brId:'128',av:'📋'},
+  'makro128':{pass:'mk128',role:'driver',name:'สาขากบินทร์บุรี',brId:'128',av:'🚛'},
+  'staff129':{pass:'st129',role:'staff',name:'สาขาลาดกระบัง',brId:'129',av:'📋'},
+  'makro129':{pass:'mk129',role:'driver',name:'สาขาลาดกระบัง',brId:'129',av:'🚛'},
+  'staff130':{pass:'st130',role:'staff',name:'สาขานาทองเจริญ',brId:'130',av:'📋'},
+  'makro130':{pass:'mk130',role:'driver',name:'สาขานาทองเจริญ',brId:'130',av:'🚛'},
+  'staff131':{pass:'st131',role:'staff',name:'สาขาบ่อวิน',brId:'131',av:'📋'},
+  'makro131':{pass:'mk131',role:'driver',name:'สาขาบ่อวิน',brId:'131',av:'🚛'},
+  'staff132':{pass:'st132',role:'staff',name:'สาขาสัตหีบ',brId:'132',av:'📋'},
+  'makro132':{pass:'mk132',role:'driver',name:'สาขาสัตหีบ',brId:'132',av:'🚛'},
+  'staff133':{pass:'st133',role:'staff',name:'สาขารามคำแหง24',brId:'133',av:'📋'},
+  'makro133':{pass:'mk133',role:'driver',name:'สาขารามคำแหง24',brId:'133',av:'🚛'},
+  'staff134':{pass:'st134',role:'staff',name:'สาขาอมตะนคร',brId:'134',av:'📋'},
+  'makro134':{pass:'mk134',role:'driver',name:'สาขาอมตะนคร',brId:'134',av:'🚛'},
+  'staff135':{pass:'st135',role:'staff',name:'สาขาบางคอแหลม',brId:'135',av:'📋'},
+  'makro135':{pass:'mk135',role:'driver',name:'สาขาบางคอแหลม',brId:'135',av:'🚛'},
+  'staff136':{pass:'st136',role:'staff',name:'สาขาขอนแก่น2',brId:'136',av:'📋'},
+  'makro136':{pass:'mk136',role:'driver',name:'สาขาขอนแก่น2',brId:'136',av:'🚛'},
+  'staff137':{pass:'st137',role:'staff',name:'สาขาวงศกร2',brId:'137',av:'📋'},
+  'makro137':{pass:'mk137',role:'driver',name:'สาขาวงศกร2',brId:'137',av:'🚛'},
+  'staff138':{pass:'st138',role:'staff',name:'สาขาเหม่งจ๋าย',brId:'138',av:'📋'},
+  'makro138':{pass:'mk138',role:'driver',name:'สาขาเหม่งจ๋าย',brId:'138',av:'🚛'},
+  'staff139':{pass:'st139',role:'staff',name:'สาขาสุขุมวิท22',brId:'139',av:'📋'},
+  'makro139':{pass:'mk139',role:'driver',name:'สาขาสุขุมวิท22',brId:'139',av:'🚛'},
+  'staff140':{pass:'st140',role:'staff',name:'สาขาถนนจันทน์',brId:'140',av:'📋'},
+  'makro140':{pass:'mk140',role:'driver',name:'สาขาถนนจันทน์',brId:'140',av:'🚛'},
+  'staff141':{pass:'st141',role:'staff',name:'สาขาลำลูกกา',brId:'141',av:'📋'},
+  'makro141':{pass:'mk141',role:'driver',name:'สาขาลำลูกกา',brId:'141',av:'🚛'},
+  'staff142':{pass:'st142',role:'staff',name:'สาขาแพรกษา',brId:'142',av:'📋'},
+  'makro142':{pass:'mk142',role:'driver',name:'สาขาแพรกษา',brId:'142',av:'🚛'},
+  'staff143':{pass:'st143',role:'staff',name:'สาขาประดิษฐ์มนูธรรม',brId:'143',av:'📋'},
+  'makro143':{pass:'mk143',role:'driver',name:'สาขาประดิษฐ์มนูธรรม',brId:'143',av:'🚛'},
+  'staff144':{pass:'st144',role:'staff',name:'สาขาตลาดรุ่งโรจน์(คลอง4)',brId:'144',av:'📋'},
+  'makro144':{pass:'mk144',role:'driver',name:'สาขาตลาดรุ่งโรจน์(คลอง4)',brId:'144',av:'🚛'},
+  'staff145':{pass:'st145',role:'staff',name:'สาขาพงษ์เพชร',brId:'145',av:'📋'},
+  'makro145':{pass:'mk145',role:'driver',name:'สาขาพงษ์เพชร',brId:'145',av:'🚛'},
+  'staff146':{pass:'st146',role:'staff',name:'สาขาอุตรดิตถ์',brId:'146',av:'📋'},
+  'makro146':{pass:'mk146',role:'driver',name:'สาขาอุตรดิตถ์',brId:'146',av:'🚛'},
+  'staff147':{pass:'st147',role:'staff',name:'สาขาเมืองทอง',brId:'147',av:'📋'},
+  'makro147':{pass:'mk147',role:'driver',name:'สาขาเมืองทอง',brId:'147',av:'🚛'},
+  'staff148':{pass:'st148',role:'staff',name:'สาขาเลียบคลอง2',brId:'148',av:'📋'},
+  'makro148':{pass:'mk148',role:'driver',name:'สาขาเลียบคลอง2',brId:'148',av:'🚛'},
+  'staff149':{pass:'st149',role:'staff',name:'สาขาอ้อมน้อย',brId:'149',av:'📋'},
+  'makro149':{pass:'mk149',role:'driver',name:'สาขาอ้อมน้อย',brId:'149',av:'🚛'},
+  'staff150':{pass:'st150',role:'staff',name:'สาขาสนามบินน้ำ',brId:'150',av:'📋'},
+  'makro150':{pass:'mk150',role:'driver',name:'สาขาสนามบินน้ำ',brId:'150',av:'🚛'},
+  'staff151':{pass:'st151',role:'staff',name:'สาขาเทพรักษ์',brId:'151',av:'📋'},
+  'makro151':{pass:'mk151',role:'driver',name:'สาขาเทพรักษ์',brId:'151',av:'🚛'},
+  'staff152':{pass:'st152',role:'staff',name:'สาขาสมุทรสงคราม',brId:'152',av:'📋'},
+  'makro152':{pass:'mk152',role:'driver',name:'สาขาสมุทรสงคราม',brId:'152',av:'🚛'},
+  'staff153':{pass:'st153',role:'staff',name:'สาขาเวียงสระ',brId:'153',av:'📋'},
+  'makro153':{pass:'mk153',role:'driver',name:'สาขาเวียงสระ',brId:'153',av:'🚛'},
+  'staff154':{pass:'st154',role:'staff',name:'สาขาปราจีนบุรี',brId:'154',av:'📋'},
+  'makro154':{pass:'mk154',role:'driver',name:'สาขาปราจีนบุรี',brId:'154',av:'🚛'},
+  'staff155':{pass:'st155',role:'staff',name:'สาขาปิ่นเกล้า',brId:'155',av:'📋'},
+  'makro155':{pass:'mk155',role:'driver',name:'สาขาปิ่นเกล้า',brId:'155',av:'🚛'},
+  'staff156':{pass:'st156',role:'staff',name:'สาขาสมุทรปราการ',brId:'156',av:'📋'},
+  'makro156':{pass:'mk156',role:'driver',name:'สาขาสมุทรปราการ',brId:'156',av:'🚛'},
+  'staff157':{pass:'st157',role:'staff',name:'สาขานครราชสีมา3 (เซฟวัน)',brId:'157',av:'📋'},
+  'makro157':{pass:'mk157',role:'driver',name:'สาขานครราชสีมา3 (เซฟวัน)',brId:'157',av:'🚛'},
+  'staff158':{pass:'st158',role:'staff',name:'สาขานครสวรรค์ 2 (พรหมนิมิต)',brId:'158',av:'📋'},
+  'makro158':{pass:'mk158',role:'driver',name:'สาขานครสวรรค์ 2 (พรหมนิมิต)',brId:'158',av:'🚛'},
+  'staff159':{pass:'st159',role:'staff',name:'สาขาอุดรธานี 2 (บ้านเลื่อม)',brId:'159',av:'📋'},
+  'makro159':{pass:'mk159',role:'driver',name:'สาขาอุดรธานี 2 (บ้านเลื่อม)',brId:'159',av:'🚛'},
+  'staff160':{pass:'st160',role:'staff',name:'สาขามหาชัย',brId:'160',av:'📋'},
+  'makro160':{pass:'mk160',role:'driver',name:'สาขามหาชัย',brId:'160',av:'🚛'},
+  'staff161':{pass:'st161',role:'staff',name:'สาขาขอนแก่น3 (บ้านโนนม่วง)',brId:'161',av:'📋'},
+  'makro161':{pass:'mk161',role:'driver',name:'สาขาขอนแก่น3 (บ้านโนนม่วง)',brId:'161',av:'🚛'},
+  'staff162':{pass:'st162',role:'staff',name:'สาขาอมตะนคร 2',brId:'162',av:'📋'},
+  'makro162':{pass:'mk162',role:'driver',name:'สาขาอมตะนคร 2',brId:'162',av:'🚛'},
+  'staff163':{pass:'st163',role:'staff',name:'สาขาสงขลา',brId:'163',av:'📋'},
+  'makro163':{pass:'mk163',role:'driver',name:'สาขาสงขลา',brId:'163',av:'🚛'},
+  'staff164':{pass:'st164',role:'staff',name:'สาขาชัยนาท',brId:'164',av:'📋'},
+  'makro164':{pass:'mk164',role:'driver',name:'สาขาชัยนาท',brId:'164',av:'🚛'},
+  'staff165':{pass:'st165',role:'staff',name:'สาขาถนนศรีอยุธยา',brId:'165',av:'📋'},
+  'makro165':{pass:'mk165',role:'driver',name:'สาขาถนนศรีอยุธยา',brId:'165',av:'🚛'},
+  'staff166':{pass:'st166',role:'staff',name:'สาขาราไวย์ 2',brId:'166',av:'📋'},
+  'makro166':{pass:'mk166',role:'driver',name:'สาขาราไวย์ 2',brId:'166',av:'🚛'},
+  'staff167':{pass:'st167',role:'staff',name:'สาขาเชียงใหม่ (จอมทอง)',brId:'167',av:'📋'},
+  'makro167':{pass:'mk167',role:'driver',name:'สาขาเชียงใหม่ (จอมทอง)',brId:'167',av:'🚛'},
+  'staff168':{pass:'st168',role:'staff',name:'สาขาบ้านบึง (ชลบุรี)',brId:'168',av:'📋'},
+  'makro168':{pass:'mk168',role:'driver',name:'สาขาบ้านบึง (ชลบุรี)',brId:'168',av:'🚛'},
+  'staff169':{pass:'st169',role:'staff',name:'สาขาพังงา',brId:'169',av:'📋'},
+  'makro169':{pass:'mk169',role:'driver',name:'สาขาพังงา',brId:'169',av:'🚛'},
+  'staff170':{pass:'st170',role:'staff',name:'สาขาอำนาจเจริญ',brId:'170',av:'📋'},
+  'makro170':{pass:'mk170',role:'driver',name:'สาขาอำนาจเจริญ',brId:'170',av:'🚛'},
+  'staff171':{pass:'st171',role:'staff',name:'สาขาจอหอ (นครราชสีมา)',brId:'171',av:'📋'},
+  'makro171':{pass:'mk171',role:'driver',name:'สาขาจอหอ (นครราชสีมา)',brId:'171',av:'🚛'},
+  'staff172':{pass:'st172',role:'staff',name:'สาขาบ้านไผ่',brId:'172',av:'📋'},
+  'makro172':{pass:'mk172',role:'driver',name:'สาขาบ้านไผ่',brId:'172',av:'🚛'},
+  'staff175':{pass:'st175',role:'staff',name:'สาขาแฮปปี้แทท (ฟอเรสเทียส์ - บางนา)',brId:'175',av:'📋'},
+  'makro175':{pass:'mk175',role:'driver',name:'สาขาแฮปปี้แทท (ฟอเรสเทียส์ - บางนา)',brId:'175',av:'🚛'},
+  'staff301':{pass:'st301',role:'staff',name:'สาขาพระราม4',brId:'301',av:'📋'},
+  'makro301':{pass:'mk301',role:'driver',name:'สาขาพระราม4',brId:'301',av:'🚛'},
+  'staff303':{pass:'st303',role:'staff',name:'สาขาศิริมังคลาจารย์',brId:'303',av:'📋'},
+  'makro303':{pass:'mk303',role:'driver',name:'สาขาศิริมังคลาจารย์',brId:'303',av:'🚛'},
+};
+
+const BR=[
+  {id:'001',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาลาดพร้าว'},
+  {id:'002',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาแจ้งวัฒนะ'},
+  {id:'003',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาศรีนครินทร์'},
+  {id:'004',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาบางบอน'},
+  {id:'005',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาชลบุรี'},
+  {id:'006',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาเชียงใหม่'},
+  {id:'007',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขานครราชสีมา'},
+  {id:'008',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขารังสิต'},
+  {id:'009',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาหาดใหญ่'},
+  {id:'010',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาอุดรธานี'},
+  {id:'011',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาพิษณุโลก'},
+  {id:'012',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาขอนแก่น'},
+  {id:'013',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาสุราษฎร์ธานี'},
+  {id:'014',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาอุบลราชธานี'},
+  {id:'015',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาระยอง'},
+  {id:'016',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขานครสวรรค์'},
+  {id:'017',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาจรัญสนิทวงศ์'},
+  {id:'018',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาสาทร'},
+  {id:'019',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขานครปฐม'},
+  {id:'020',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาสุรินทร์'},
+  {id:'021',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาสามเสน'},
+  {id:'022',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขานครศรีธรรมราช'},
+  {id:'023',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาเชียงราย'},
+  {id:'024',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาสกลนคร'},
+  {id:'025',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาสุพรรณบุรี'},
+  {id:'026',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาจันทบุรี'},
+  {id:'027',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาภูเก็ต'},
+  {id:'028',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาร้อยเอ็ด'},
+  {id:'029',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาตรัง'},
+  {id:'030',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาสระแก้ว'},
+  {id:'031',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาเกาะสมุย'},
+  {id:'032',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาบุรีรัมย์'},
+  {id:'033',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาศรีสะเกษ'},
+  {id:'034',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาลำพูน'},
+  {id:'035',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขากระบี่'},
+  {id:'036',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาเพชรบุรี'},
+  {id:'037',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาชัยภูมิ'},
+  {id:'038',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาสระบุรี'},
+  {id:'039',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาปราณบุรี'},
+  {id:'040',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาฉะเชิงเทรา'},
+  {id:'041',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาเชียงใหม่2'},
+  {id:'042',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขารามอินทรา'},
+  {id:'043',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาชุมพร'},
+  {id:'044',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาพัทยา'},
+  {id:'045',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขากำแพงเพชร'},
+  {id:'046',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขากาญจนบุรี'},
+  {id:'047',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาลพบุรี'},
+  {id:'048',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาหนองคาย'},
+  {id:'049',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาราชบุรี'},
+  {id:'050',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาแม่ริม'},
+  {id:'051',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาอยุธยา'},
+  {id:'052',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาลำปาง'},
+  {id:'053',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาหัวหิน'},
+  {id:'054',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาคลองหลวง'},
+  {id:'055',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาเลย'},
+  {id:'056',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาเพชรบูรณ์'},
+  {id:'057',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาบางพลี'},
+  {id:'058',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขามุกดาหาร'},
+  {id:'059',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาสตูล'},
+  {id:'060',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาตราด'},
+  {id:'061',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาชุมแพ'},
+  {id:'062',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาราไวย์'},
+  {id:'063',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขานครพนม'},
+  {id:'064',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาเกาะพะงัน'},
+  {id:'065',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาบึงกาฬ'},
+  {id:'066',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาพัทยาเหนือ'},
+  {id:'067',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาแม่สาย'},
+  {id:'068',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาศาลายา'},
+  {id:'069',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาพัทลุง'},
+  {id:'070',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาสุโขทัย'},
+  {id:'071',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาป่าตอง'},
+  {id:'072',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาสมุทรสาคร'},
+  {id:'073',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาแม่สอด'},
+  {id:'074',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาปากช่อง'},
+  {id:'075',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาถลาง'},
+  {id:'076',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาระนอง'},
+  {id:'077',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาละไม'},
+  {id:'078',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขากัลปพฤกษ์'},
+  {id:'079',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขายโสธร'},
+  {id:'080',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขามหาสารคาม'},
+  {id:'081',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาฝาง'},
+  {id:'082',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขานครนายก'},
+  {id:'083',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขานครอินทร์'},
+  {id:'084',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาบ้านเพ'},
+  {id:'085',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาทุ่งสง'},
+  {id:'086',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาศรีนครินทร์2'},
+  {id:'087',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาพะเยา'},
+  {id:'089',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาพิษณุโลก2'},
+  {id:'096',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาทาวน์อินทาวน์'},
+  {id:'100',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาแพร่'},
+  {id:'101',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาเกาะช้าง'},
+  {id:'102',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขานครราชสีมา2'},
+  {id:'103',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาน่าน'},
+  {id:'104',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาอ่าวนาง'},
+  {id:'105',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขากะรน'},
+  {id:'106',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาวารินชำราบ'},
+  {id:'107',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาหนองบัวลำภู'},
+  {id:'108',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาหนองจอก'},
+  {id:'109',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาแหลมฉบัง'},
+  {id:'110',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาประจวบคีรีขันธ์'},
+  {id:'111',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาเพชรเกษม'},
+  {id:'112',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาบางปู'},
+  {id:'113',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาวังหิน'},
+  {id:'114',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาสิงห์บุรี'},
+  {id:'115',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาบางบัวทอง'},
+  {id:'116',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขากาฬสินธุ์'},
+  {id:'117',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาอุดมสุข'},
+  {id:'118',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขารามคำแหง(สัมมากร)'},
+  {id:'119',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาพิจิตร'},
+  {id:'120',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาปทุมธานี'},
+  {id:'121',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาบดินทรเดชา'},
+  {id:'122',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาประชาอุทิศ'},
+  {id:'123',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาสุขุมวิท71'},
+  {id:'124',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขานวมินทร์70'},
+  {id:'125',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาชะอำ'},
+  {id:'126',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาอ่อนนุช'},
+  {id:'127',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาสุขสวัสดิ์'},
+  {id:'128',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขากบินทร์บุรี'},
+  {id:'129',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาลาดกระบัง'},
+  {id:'130',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขานาทองเจริญ'},
+  {id:'131',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาบ่อวิน'},
+  {id:'132',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาสัตหีบ'},
+  {id:'133',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขารามคำแหง24'},
+  {id:'134',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาอมตะนคร'},
+  {id:'135',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาบางคอแหลม'},
+  {id:'136',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาขอนแก่น2'},
+  {id:'137',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาวงศกร2'},
+  {id:'138',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาเหม่งจ๋าย'},
+  {id:'139',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาสุขุมวิท22'},
+  {id:'140',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาถนนจันทน์'},
+  {id:'141',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาลำลูกกา'},
+  {id:'142',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาแพรกษา'},
+  {id:'143',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาประดิษฐ์มนูธรรม'},
+  {id:'144',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาตลาดรุ่งโรจน์(คลอง4)'},
+  {id:'145',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาพงษ์เพชร'},
+  {id:'146',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาอุตรดิตถ์'},
+  {id:'147',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาเมืองทอง'},
+  {id:'148',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาเลียบคลอง2'},
+  {id:'149',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาอ้อมน้อย'},
+  {id:'150',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาสนามบินน้ำ'},
+  {id:'151',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาเทพรักษ์'},
+  {id:'152',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาสมุทรสงคราม'},
+  {id:'153',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาเวียงสระ'},
+  {id:'154',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาปราจีนบุรี'},
+  {id:'155',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาปิ่นเกล้า'},
+  {id:'156',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาสมุทรปราการ'},
+  {id:'157',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขานครราชสีมา3 (เซฟวัน)'},
+  {id:'158',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขานครสวรรค์ 2 (พรหมนิมิต)'},
+  {id:'159',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาอุดรธานี 2 (บ้านเลื่อม)'},
+  {id:'160',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขามหาชัย'},
+  {id:'161',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาขอนแก่น3 (บ้านโนนม่วง)'},
+  {id:'162',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาอมตะนคร 2'},
+  {id:'163',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาสงขลา'},
+  {id:'164',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาชัยนาท'},
+  {id:'165',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาถนนศรีอยุธยา'},
+  {id:'166',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาราไวย์ 2'},
+  {id:'167',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาเชียงใหม่ (จอมทอง)'},
+  {id:'168',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาบ้านบึง (ชลบุรี)'},
+  {id:'169',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาพังงา'},
+  {id:'170',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาอำนาจเจริญ'},
+  {id:'171',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาจอหอ (นครราชสีมา)'},
+  {id:'172',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาบ้านไผ่'},
+  {id:'175',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาแฮปปี้แทท (ฟอเรสเทียส์ - บางนา)'},
+  {id:'301',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาพระราม4'},
+  {id:'303',n:'บมจ.ซีพี แอ็กซ์ตร้า สาขาศิริมังคลาจารย์'},
+];
+const GOODS=[
+  {ic:'🥦',lb:'ผักและผลไม้'},{ic:'🐷',lb:'หมู'},{ic:'🐟',lb:'ปลา'},
+  {ic:'🥐',lb:'เบเกอรี่'},{ic:'🧊',lb:'อาหารแช่แข็ง'},{ic:'🧴',lb:'ของใช้ในบ้าน'},
+  {ic:'🥤',lb:'เครื่องดื่ม'},{ic:'📦',lb:'สินค้าแห้ง'},{ic:'❓',lb:'อื่นๆ'},
+];
+const STS=['รอเรียก','กำลังรับสินค้า','เสร็จสิ้น'];
+
+/* ============================================================
+   FIREBASE INIT
+============================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyC2B8dwpZlOA_Ksv9AuSFyh-KCIVqylRWg",
+  authDomain: "makro-queue-phitsanulok.firebaseapp.com",
+  databaseURL: "https://makro-queue-phitsanulok-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "makro-queue-phitsanulok",
+  storageBucket: "makro-queue-phitsanulok.firebasestorage.app",
+  messagingSenderId: "801595415325",
+  appId: "1:801595415325:web:271cdf742d36c97ddddff4",
+  measurementId: "G-ZL72ZD3MKJ"
+};
+firebase.initializeApp(firebaseConfig);
+const DB = firebase.database();
+// QUEUE_REF จะถูก set ตาม brId ของ user หลัง login
+let QUEUE_REF = null;
+let _fbListener = null;
+
+/* ============================================================
+   STATE  — single source of truth
+============================================================ */
+let CU=null; // current user
+let REC=[];   // filled by Firebase real-time listener
+let _fbLoaded=false; // true after first Firebase snapshot
+
+/* Filter state — shared between dashboard→queue_list navigation */
+const F={s:'',br:'',st:'',d1:'',d2:''};
+
+/* saveRec — local backup only; Firebase is the source of truth */
+function saveRec(){localStorage.setItem('mkq5_'+(CU?CU.brId:'x'),JSON.stringify(REC));}
+
+/* ── setupFirebase: เรียกหลัง login ──
+   - user สาขา → อ่านเฉพาะ queues/brXXX
+   - Head Office → อ่าน queues ทั้งหมด (ทุกสาขา) ── */
+function setupFirebase(brId){
+  if(QUEUE_REF && _fbListener){ QUEUE_REF.off('value', _fbListener); }
+  const isHead = (CU && CU.role==='head');
+  QUEUE_REF = isHead ? DB.ref('queues') : DB.ref('queues/br'+brId);
+  _fbLoaded = false;
+  showLoadingUntilFbReady();
+  _fbListener = QUEUE_REF.on('value', snapshot => {
+    const data = snapshot.val();
+    if(isHead){
+      // โครงสร้าง: queues/{brXXX}/{pushKey}/{record}
+      REC = [];
+      if(data){
+        Object.keys(data).forEach(brNode=>{        // brNode = 'br001', 'br006', ...
+          const branch = data[brNode];
+          if(!branch) return;
+          Object.keys(branch).forEach(pushKey=>{
+            const rec = branch[pushKey];
+            if(rec && typeof rec==='object'){
+              rec._fbKey = pushKey;
+              rec._fbBranch = brNode;   // เก็บ node ไว้สำหรับ update/delete ข้ามสาขา
+              REC.push(rec);
+            }
+          });
+        });
+      }
+    } else {
+      REC = data ? Object.values(data) : [];
+      if(data){
+        const keys = Object.keys(data);
+        const vals = Object.values(data);
+        vals.forEach((v,i)=>{ const r=REC.find(x=>x.id===v.id); if(r) r._fbKey=keys[i]; });
+      }
+    }
+    _fbLoaded = true;
+    saveRec();
+    const mc = document.getElementById('MC');
+    if(!mc || !_tab) return;
+    if(_tab==='queue_list') refTbl();
+    else if(_tab==='dashboard') buildDash(mc);
+    else if(_tab==='my_queue') buildMine(mc);
+    else if(_tab==='ho_dashboard') buildHODash(mc);
+  });
+}
+
+/* ── helper: คืน ref ของ record สำหรับ update/delete (รองรับทั้งสาขาเดียวและ head) ── */
+function recRef(r){
+  if(CU && CU.role==='head' && r._fbBranch){
+    return DB.ref('queues/'+r._fbBranch+'/'+r._fbKey);
+  }
+  return QUEUE_REF.child(r._fbKey);
+}
+
+/* ============================================================
+   DATE / TIME HELPERS
+============================================================ */
+function isoToday(){const d=new Date();return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;}
+function isoAgo(n){const d=new Date();d.setDate(d.getDate()-n);return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;}
+function nowTm(){const d=new Date();return `${p2(d.getHours())}:${p2(d.getMinutes())}`;}
+function p2(n){return String(n).padStart(2,'0');}
+function p3(n){return String(n).padStart(3,'0');}
+function fmtD(iso){if(!iso||!iso.includes('-'))return iso||'—';const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`;}
+function todayTH(){return new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric',weekday:'long'});}
+
+/* ============================================================
+   FILTERED RECORDS — single function used everywhere
+============================================================ */
+function filteredRec(){
+  let f=[...REC];
+  if(F.d1) f=f.filter(r=>r.date>=F.d1);
+  if(F.d2) f=f.filter(r=>r.date<=F.d2);
+  if(F.br) f=f.filter(r=>r.brId===F.br);
+  if(F.st) f=f.filter(r=>r.sts===F.st);
+  if(F.s){
+    const s=F.s.toLowerCase().trim();
+    f=f.filter(r=>r.name.toLowerCase().includes(s)||r.plate.toLowerCase().includes(s)||
+      r.co.toLowerCase().includes(s)||r.ph.includes(s));
+  }
+  return f.sort((a,b)=>b.id-a.id);
+}
+
+function clearF(){F.s='';F.br='';F.st='';F.d1='';F.d2='';}
+
+/* ============================================================
+   LOGIN / LOGOUT
+============================================================ */
+function doLogin(){
+  const u=(document.getElementById('lu').value||'').trim().toLowerCase();
+  const p=(document.getElementById('lp').value||'').trim();
+  const ud=USERS[u];
+  if(!ud||ud.pass!==p){toast('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง','err');return;}
+  CU={...ud,username:u};
+  document.getElementById('loginScreen').style.display='none';
+  setupFirebase(CU.brId);
+  initApp();
+}
+function doLogout(){
+  if(QUEUE_REF && _fbListener){ QUEUE_REF.off('value', _fbListener); _fbListener=null; }
+  REC=[];_fbLoaded=false;
+  CU=null;clearF();
+  document.getElementById('app').style.display='none';
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('lu').value='';
+  document.getElementById('lp').value='';
+}
+
+/* ============================================================
+   APP INIT
+============================================================ */
+const T_DRV=[{id:'register',lb:'ลงทะเบียนคิว',ic:'🚛'},{id:'my_queue',lb:'คิวของฉัน',ic:'📋'}];
+const T_STF=[{id:'dashboard',lb:'แดชบอร์ด',ic:'📊'},{id:'queue_list',lb:'รายการคิว',ic:'📋'}];
+
+let _tab='';
+function initApp(){
+  const isHead = CU.role==='head';
+  document.getElementById('hAv').textContent=CU.av;
+  document.getElementById('hNm').textContent=CU.name;
+  document.getElementById('hRl').textContent = isHead
+    ? 'ส่วนกลาง · ตรวจสอบทุกสาขา'
+    : (CU.role==='driver'?'พนักงานขนส่ง':'แผนกรับสินค้า')+' | สาขา '+CU.brId;
+
+  if(isHead){
+    // Head Office: ไม่แสดง tab เมนู ทั้ง desktop และ mobile
+    document.getElementById('navTabs').innerHTML='';
+    document.getElementById('mobNav').innerHTML='';
+    document.getElementById('mobNav').style.display='none';
+    document.getElementById('app').style.display='flex';
+    go('ho_dashboard');
+    return;
+  }
+
+  const tabs=CU.role==='driver'?T_DRV:T_STF;
+  document.getElementById('mobNav').style.display='';
+  document.getElementById('navTabs').innerHTML=tabs.map(t=>`<button class="nav-tab" data-tab="${t.id}" onclick="go('${t.id}')">${t.ic} ${t.lb}</button>`).join('');
+  document.getElementById('mobNav').innerHTML=tabs.map(t=>`<button class="mb" data-tab="${t.id}" onclick="go('${t.id}')"><span class="mi">${t.ic}</span>${t.lb}</button>`).join('');
+  document.getElementById('app').style.display='flex';
+  go(tabs[0].id);
+}
+
+function go(id){
+  _tab=id;
+  document.querySelectorAll('.nav-tab,.mb').forEach(b=>b.classList.toggle('on',b.dataset.tab===id));
+  const mc=document.getElementById('MC');
+  mc.className='fade-up';mc.innerHTML='';void mc.offsetWidth;
+  if(id==='register')   buildReg(mc);
+  else if(id==='my_queue') buildMine(mc);
+  else if(id==='dashboard')  buildDash(mc);
+  else if(id==='queue_list') buildList(mc);
+  else if(id==='ho_dashboard') buildHODash(mc);
+}
+
+/* ============================================================
+   REGISTER
+============================================================ */
+function nextQ(){return REC.filter(r=>r.date===isoToday()).length+1;}
+
+function buildReg(mc){
+  mc.innerHTML=`
+  <div class="page-hd"><h2>🚛 ลงทะเบียนคิวส่งสินค้า</h2><p>${todayTH()}</p></div>
+  <div class="q-banner">
+    <div><div class="qb-lbl">หมายเลขคิวที่จะได้รับ</div>
+    <div class="qb-num">#${p3(nextQ())}</div>
+    <div class="qb-dt">📅 ${fmtD(isoToday())}</div></div>
+    <div class="qb-ico">🎫</div>
+  </div>
+  <div class="form-card">
+    <h3>📝 ข้อมูลรถขนส่ง</h3>
+    <div class="form-grid">
+      <div class="ff"><label>ชื่อ-นามสกุลผู้ขับ <span class="req">*</span></label><input id="fn" type="text" placeholder="เช่น นายสมชาย ใจดี" autocomplete="name"/></div>
+      <div class="ff"><label>เบอร์โทรศัพท์ <span class="req">*</span></label><input id="fp" type="tel" placeholder="0812345678" maxlength="10" inputmode="numeric"/></div>
+      <div class="ff"><label>บริษัทผู้ส่งสินค้า <span class="req">*</span></label><input id="fc" type="text" placeholder="ชื่อบริษัท/ห้าง"/></div>
+      <div class="ff"><label>ทะเบียนรถ <span class="req">*</span></label><input id="fl" type="text" placeholder="เช่น กข-1234" autocapitalize="characters"/></div>
+      ${CU.role==='driver'
+        ? `<div class="ff" style="grid-column:1/-1"><label>สาขาแม็คโครที่มาส่ง</label>
+             <input type="text" readonly value="${BR.find(b=>b.id===CU.brId)?.id+' — '+(BR.find(b=>b.id===CU.brId)?.n||CU.brId)}" style="background:var(--SUR2);color:var(--TX3);cursor:not-allowed"/>
+             <input type="hidden" id="fb" value="${CU.brId}"/>
+           </div>`
+        : `<div class="ff" style="grid-column:1/-1"><label>สาขาแม็คโครที่มาส่ง <span class="req">*</span></label>
+             <select id="fb"><option value="">— เลือกสาขา —</option>${BR.map(b=>`<option value="${b.id}">${b.id} — ${b.n}</option>`).join('')}</select>
+           </div>`
+      }
+      <div class="ff" style="grid-column:1/-1"><label>ประเภทสินค้า <span class="req">*</span></label>
+        <div class="g-chips" id="gCh">${GOODS.map(g=>`<div class="g-chip" data-g="${g.lb}">${g.ic} ${g.lb}</div>`).join('')}</div>
+        <input type="hidden" id="fg"/>
+      </div>
+      <div class="ff" style="grid-column:1/-1"><label>หมายเหตุ</label><textarea id="fn2" placeholder="จำนวนพาเลต, รหัสใบสั่งซื้อ..."></textarea></div>
+    </div>
+    <div class="form-acts">
+      <button class="btn btn-s" onclick="clrReg()">🔄 ล้างข้อมูล</button>
+      <button class="btn btn-p" onclick="subReg()">✅ บันทึกและรับคิว</button>
+    </div>
+  </div>`;
+  mc.querySelectorAll('#gCh .g-chip').forEach(el=>{
+    el.addEventListener('click',()=>{
+      mc.querySelectorAll('#gCh .g-chip').forEach(x=>x.classList.remove('on'));
+      el.classList.add('on');
+      document.getElementById('fg').value=el.dataset.g;
+    });
+  });
+}
+function clrReg(){
+  ['fn','fp','fc','fl','fn2'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const s=document.getElementById('fb');if(s)s.value='';
+  document.getElementById('fg').value='';
+  document.querySelectorAll('#gCh .g-chip').forEach(x=>x.classList.remove('on'));
+}
+function subReg(){
+  const name=v('fn'),ph=v('fp'),co=v('fc'),plate=v('fl'),brId=v('fb'),gds=v('fg'),note=v('fn2');
+  if(!name||!ph||!co||!plate||!brId||!gds){toast('กรุณากรอกข้อมูลให้ครบทุกช่องที่มี *','err');return;}
+  const bObj=BR.find(b=>b.id===brId);
+  const rec={id:Date.now(),qNum:nextQ(),date:isoToday(),tm:nowTm(),name,ph,co,plate,brId,brN:bObj?bObj.n:brId,gds,note,sts:'รอเรียก',user:CU.username};
+  // Push ไปยัง Firebase (real-time sync ทุกเครื่อง)
+  const newRef = QUEUE_REF.push();
+  rec._fbKey = newRef.key;
+  newRef.set(rec).then(()=>{
+    toast(`✅ บันทึกสำเร็จ! คิวของคุณคือ #${p3(rec.qNum)}`,'ok');
+    go('my_queue');
+  }).catch(err=>{
+    // fallback: save local แล้วแจ้ง error
+    REC.push(rec); saveRec();
+    toast(`✅ บันทึกแล้ว (offline) #${p3(rec.qNum)}`,'ok');
+    go('my_queue');
+  });
+}
+
+/* ============================================================
+   MY QUEUE (driver)
+============================================================ */
+function buildMine(mc){
+  const mine=REC.filter(r=>r.user===CU.username).sort((a,b)=>b.id-a.id);
+  mc.innerHTML=`
+  <div class="page-hd"><h2>📋 คิวของฉัน</h2><p>แก้ไขได้เฉพาะคิวของตนเองเท่านั้น</p></div>
+  <div class="table-card">
+    <div class="tbl-wrap">
+    ${mine.length===0
+      ?`<div class="empty"><div class="ei">📭</div><p>ยังไม่มีรายการ<br><button class="btn btn-p btn-sm" style="margin-top:12px" onclick="go('register')">+ ลงทะเบียนคิวใหม่</button></p></div>`
+      :`<table>
+        <thead><tr><th>คิว</th><th>วันที่/เวลา</th><th>ชื่อผู้ขับ</th><th>ทะเบียน</th><th>บริษัท</th><th>สาขา</th><th>สินค้า</th><th>สถานะ</th><th>แก้ไข</th></tr></thead>
+        <tbody>${mine.map(r=>`<tr>
+          <td><span class="q-bdg">${p3(r.qNum)}</span></td>
+          <td style="white-space:nowrap"><strong>${fmtD(r.date)}</strong><br><small style="color:var(--TX3)">⏰ ${r.tm}</small></td>
+          <td><strong>${esc(r.name)}</strong><br><small style="color:var(--TX3)">📞 ${esc(r.ph)}</small></td>
+          <td><strong>${esc(r.plate)}</strong></td>
+          <td>${esc(r.co)}</td>
+          <td><span class="br-tag">${r.brId}</span><br><small style="color:var(--TX3)">${esc(r.brN)}</small></td>
+          <td><span class="g-tag">${gIco(r.gds)} ${esc(r.gds)}</span></td>
+          <td><span class="s-bdg ${sCls(r.sts)}">${sDot(r.sts)} ${r.sts}</span></td>
+          <td><button class="btn btn-s btn-sm" data-edit="${r.id}">✏️ แก้ไข</button></td>
+        </tr>`).join('')}</tbody>
+      </table>`}
+    </div>
+  </div>`;
+  mc.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>editRec(+b.dataset.edit)));
+}
+
+/* ============================================================
+   DASHBOARD — fully linked to queue_list via F state
+============================================================ */
+function buildDash(mc){
+  const today=isoToday();
+  const allRec=REC;
+  const todayRec=allRec.filter(r=>r.date===today);
+  const w=todayRec.filter(r=>r.sts==='รอเรียก').length;
+  const rv=todayRec.filter(r=>r.sts==='กำลังรับสินค้า').length;
+  const dn=todayRec.filter(r=>r.sts==='เสร็จสิ้น').length;
+
+  // 7-day bar chart
+  const days=[];
+  for(let i=6;i>=0;i--){
+    const iso=isoAgo(i);
+    const d=new Date(iso+'T00:00:00');
+    days.push({iso,lbl:`${p2(d.getDate())}/${p2(d.getMonth()+1)}`,count:allRec.filter(r=>r.date===iso).length,isToday:iso===today});
+  }
+  const mx=Math.max(...days.map(d=>d.count),1);
+
+  // goods count today
+  const gc={};todayRec.forEach(r=>{gc[r.gds]=(gc[r.gds]||0)+1;});
+
+  // recent 5
+  const recent=allRec.slice().sort((a,b)=>b.id-a.id).slice(0,5);
+
+  mc.innerHTML=`
+  <div class="page-hd"><h2>📊 แดชบอร์ดภาพรวม</h2><p>${todayTH()}</p></div>
+
+  <div class="stats-grid">
+    <div class="stat c-blue clickable" data-goto="all">
+      <div class="stat-lbl">คิวทั้งหมดวันนี้</div><div class="stat-val">${todayRec.length}</div>
+      <div class="stat-sub">คัน</div><div class="stat-hint">ดูรายการวันนี้ →</div>
+    </div>
+    <div class="stat c-orange clickable" data-goto="รอเรียก">
+      <div class="stat-lbl">รอเรียก</div><div class="stat-val">${w}</div>
+      <div class="stat-sub">คัน</div><div class="stat-hint">กรองรายการ →</div>
+    </div>
+    <div class="stat c-indigo clickable" data-goto="กำลังรับสินค้า">
+      <div class="stat-lbl">กำลังรับสินค้า</div><div class="stat-val">${rv}</div>
+      <div class="stat-sub">คัน</div><div class="stat-hint">กรองรายการ →</div>
+    </div>
+    <div class="stat c-green clickable" data-goto="เสร็จสิ้น">
+      <div class="stat-lbl">เสร็จสิ้น</div><div class="stat-val">${dn}</div>
+      <div class="stat-sub">คัน</div><div class="stat-hint">กรองรายการ →</div>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-hd"><h3>📈 จำนวนรถขนส่งรายวัน (7 วันล่าสุด)</h3><span style="font-size:11px;color:var(--TX3)">🔴 วันนี้</span></div>
+    <div class="bar-wrap">
+      ${days.map(d=>`<div class="bar-col">
+        <div class="bar-v">${d.count||''}</div>
+        <div class="bar-b ${d.isToday?'td':'pt'}" style="height:${Math.round((d.count/mx)*130)+4}px"></div>
+        <div class="bar-ax">${d.lbl}</div>
+      </div>`).join('')}
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-hd"><h3>🏷️ ประเภทสินค้าวันนี้</h3></div>
+    ${Object.keys(gc).length===0
+      ?`<p style="color:var(--TX3);font-size:14px">ยังไม่มีข้อมูลวันนี้</p>`
+      :`<div style="display:flex;flex-wrap:wrap;gap:10px">
+        ${Object.entries(gc).sort((a,b)=>b[1]-a[1]).map(([g,c])=>`
+        <div style="display:flex;align-items:center;gap:8px;background:var(--PL);padding:10px 14px;border-radius:10px;cursor:pointer" data-goodsfilter="${g}">
+          <span style="font-size:20px">${gIco(g)}</span>
+          <div><div style="font-size:20px;font-weight:800;color:var(--PD);font-family:'Kanit',sans-serif;line-height:1">${c}</div>
+          <div style="font-size:12px;color:var(--TX2)">${g}</div></div>
+        </div>`).join('')}
+      </div>`}
+  </div>
+
+  <div class="chart-card" style="margin-bottom:0">
+    <div class="chart-hd">
+      <h3>🕐 คิวล่าสุด 5 รายการ</h3>
+      <button class="btn btn-p btn-sm" data-goto="all">ดูทั้งหมด →</button>
+    </div>
+    <div class="recent-wrap">
+      ${recent.length===0?`<p style="color:var(--TX3);font-size:14px">ยังไม่มีข้อมูล</p>`:`
+      <table>
+        <thead><tr><th>คิว</th><th>วันที่/เวลา</th><th>ชื่อผู้ขับ</th><th>ทะเบียน</th><th>สาขา</th><th>สินค้า</th><th>สถานะ</th></tr></thead>
+        <tbody>${recent.map(r=>`<tr>
+          <td><span class="q-bdg">${p3(r.qNum)}</span></td>
+          <td style="white-space:nowrap"><strong>${fmtD(r.date)}</strong><br><small style="color:var(--TX3)">⏰ ${r.tm}</small></td>
+          <td><strong>${esc(r.name)}</strong></td>
+          <td>${esc(r.plate)}</td>
+          <td><span class="br-tag">${r.brId}</span></td>
+          <td><span class="g-tag">${gIco(r.gds)} ${esc(r.gds)}</span></td>
+          <td><span class="s-bdg ${sCls(r.sts)}">${sDot(r.sts)} ${r.sts}</span></td>
+        </tr>`).join('')}</tbody>
+      </table>`}
+    </div>
+  </div>`;
+
+  /* ── Dashboard → Queue List navigation with filters pre-set ── */
+  mc.querySelectorAll('[data-goto]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      clearF();
+      const v=el.dataset.goto;
+      if(v==='all'){
+        // Show today's records only
+        F.d1=today; F.d2=today;
+      } else {
+        // Today + specific status
+        F.d1=today; F.d2=today; F.st=v;
+      }
+      go('queue_list');
+    });
+  });
+
+  /* goods chip → filter by goods type (search field) */
+  mc.querySelectorAll('[data-goodsfilter]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      clearF();
+      F.d1=today; F.d2=today;
+      F.s=el.dataset.goodsfilter;
+      go('queue_list');
+    });
+  });
+}
+
+/* ============================================================
+   QUEUE LIST — stable toolbar, only tbody refreshes
+   All filters read/write from F object (shared with dashboard)
+============================================================ */
+function buildList(mc){
+  mc.innerHTML=`
+  <div class="page-hd"><h2>📋 รายการคิวรถขนส่งทั้งหมด</h2><p>จัดการ อัปเดตสถานะ แก้ไข และลบข้อมูล</p></div>
+  <div class="table-card">
+    <div class="table-toolbar">
+      <div class="tbar-r1">
+        <div class="srch-box"><input type="text" id="fS" placeholder="ชื่อ, ทะเบียน, บริษัท, เบอร์..." value="" inputmode="search"/></div>
+        <select id="fBr" class="flt-sel">
+          <option value="">ทุกสาขา</option>
+          ${BR.map(b=>`<option value="${b.id}">${b.id} — ${b.n}</option>`).join('')}
+        </select>
+        <select id="fSt" class="flt-sel">
+          <option value="">ทุกสถานะ</option>
+          ${STS.map(s=>`<option value="${s}">${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="tbar-r2">
+        <div class="tbar-r2-left">
+          <input type="date" id="fD1" class="date-in" title="วันที่เริ่มต้น"/>
+          <span style="font-size:12px;color:var(--TX3);flex-shrink:0">ถึง</span>
+          <input type="date" id="fD2" class="date-in" title="วันที่สิ้นสุด"/>
+          <button id="btnClr" class="btn btn-s btn-sm">🔄 ล้างตัวกรอง</button>
+        </div>
+        <div class="tbar-r2-right">
+          <span class="tbl-cnt">พบ <span id="rCnt">0</span> รายการ</span>
+          <button id="btnExp" class="btn btn-g btn-sm">📥 Excel</button>
+        </div>
+      </div>
+    </div>
+    <div class="ftags" id="fTags"></div>
+    <div class="tbl-wrap" id="tblWrap"></div>
+  </div>`;
+
+  /* Set values from F state AFTER innerHTML is set */
+  qsel('fS').value=F.s;
+  qsel('fBr').value=F.br;
+  qsel('fSt').value=F.st;
+  qsel('fD1').value=F.d1;
+  qsel('fD2').value=F.d2;
+
+  /* Attach events — imperative, never inline */
+  qsel('fS').addEventListener('input', e=>{F.s=e.target.value;  refTbl();});
+  qsel('fBr').addEventListener('change',e=>{F.br=e.target.value; refTbl();});
+  qsel('fSt').addEventListener('change',e=>{F.st=e.target.value; refTbl();});
+  qsel('fD1').addEventListener('change',e=>{F.d1=e.target.value; refTbl();});
+  qsel('fD2').addEventListener('change',e=>{F.d2=e.target.value; refTbl();});
+  qsel('btnClr').addEventListener('click',()=>{
+    clearF();
+    qsel('fS').value=''; qsel('fBr').value=''; qsel('fSt').value='';
+    qsel('fD1').value=''; qsel('fD2').value='';
+    refTbl();
+  });
+  qsel('btnExp').addEventListener('click',doExport);
+
+  refTbl();
+}
+
+/* refresh only tbody + count + tags */
+function refTbl(){
+  const f=filteredRec();
+
+  /* count */
+  const ce=document.getElementById('rCnt');
+  if(ce) ce.textContent=f.length;
+
+  /* filter tags */
+  buildTags();
+
+  const wrap=document.getElementById('tblWrap');
+  if(!wrap) return;
+
+  if(f.length===0){
+    wrap.innerHTML=`<div class="empty"><div class="ei">📭</div><p>ไม่พบรายการที่ตรงกับเงื่อนไข</p></div>`;
+    return;
+  }
+
+  wrap.innerHTML=`<table>
+    <thead><tr>
+      <th>คิว</th><th>วันที่/เวลา</th><th>ชื่อผู้ขับ</th><th>เบอร์โทร</th>
+      <th>ทะเบียน</th><th>บริษัท</th><th>สาขา</th><th>สินค้า</th>
+      <th>สถานะ</th><th>หมายเหตุ</th><th>จัดการ</th>
+    </tr></thead>
+    <tbody id="tblBody"></tbody>
+  </table>`;
+
+  const tbody=document.getElementById('tblBody');
+  f.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><span class="q-bdg">${p3(r.qNum)}</span></td>
+      <td style="white-space:nowrap"><strong>${fmtD(r.date)}</strong><br><small style="color:var(--TX3)">⏰ ${r.tm}</small></td>
+      <td><strong>${esc(r.name)}</strong></td>
+      <td style="white-space:nowrap">${esc(r.ph)}</td>
+      <td><strong>${esc(r.plate)}</strong></td>
+      <td style="max-width:140px">${esc(r.co)}</td>
+      <td><span class="br-tag">${r.brId}</span><br><small style="color:var(--TX3)">${esc(r.brN)}</small></td>
+      <td><span class="g-tag">${gIco(r.gds)} ${esc(r.gds)}</span></td>
+      <td>
+        <select class="sts-sel">
+          ${STS.map(s=>`<option value="${s}"${r.sts===s?' selected':''}>${s}</option>`).join('')}
+        </select>
+      </td>
+      <td style="max-width:110px;font-size:11px;color:var(--TX3)">${esc(r.note||'—')}</td>
+      <td>
+        <div class="acts">
+          <button class="btn btn-s btn-xs" data-edit="${r.id}">✏️</button>
+          <button class="btn btn-d btn-xs" data-del="${r.id}">🗑️</button>
+        </div>
+      </td>`;
+    tr.querySelector('.sts-sel').addEventListener('change',e=>updSts(r.id,e.target.value));
+    tr.querySelector('[data-edit]').addEventListener('click',()=>editRec(r.id));
+    tr.querySelector('[data-del]').addEventListener('click',()=>delRec(r.id));
+    tbody.appendChild(tr);
+  });
+}
+
+function buildTags(){
+  const el=document.getElementById('fTags');
+  if(!el) return;
+  const tags=[];
+  if(F.s)  tags.push({lb:`🔍 "${F.s}"`, clr:()=>{F.s='';qsel('fS').value='';refTbl();}});
+  if(F.br){const b=BR.find(x=>x.id===F.br);tags.push({lb:`📍 ${b?b.n:F.br}`,clr:()=>{F.br='';qsel('fBr').value='';refTbl();}});}
+  if(F.st) tags.push({lb:`${sDot(F.st)} ${F.st}`,clr:()=>{F.st='';qsel('fSt').value='';refTbl();}});
+  if(F.d1) tags.push({lb:`📅 ตั้งแต่ ${fmtD(F.d1)}`,clr:()=>{F.d1='';qsel('fD1').value='';refTbl();}});
+  if(F.d2) tags.push({lb:`📅 ถึง ${fmtD(F.d2)}`,clr:()=>{F.d2='';qsel('fD2').value='';refTbl();}});
+  if(tags.length===0){el.style.display='none';return;}
+  el.style.display='flex';
+  el.innerHTML=tags.map((_,i)=>`<span class="ftag" data-ti="${i}">${_.lb} <button>✕</button></span>`).join('');
+  el.querySelectorAll('[data-ti]').forEach(span=>{
+    span.querySelector('button').addEventListener('click',()=>tags[+span.dataset.ti].clr());
+  });
+}
+
+/* ============================================================
+   STATUS UPDATE
+============================================================ */
+function updSts(id,sts){
+  const r=REC.find(x=>x.id===id);if(!r)return;
+  r.sts=sts;saveRec();
+  // Firebase update เฉพาะ field sts
+  if(r._fbKey){
+    recRef(r).update({sts});
+  }
+  toast(`อัปเดตสถานะเป็น "${sts}" แล้ว`,'ok');
+  refTbl();
+}
+
+/* ============================================================
+   DELETE
+============================================================ */
+function delRec(id){
+  if(CU.role!=='staff' && CU.role!=='head'){toast('ไม่มีสิทธิ์ลบรายการ','err');return;}
+  const r=REC.find(x=>x.id===id);if(!r)return;
+  if(!confirm(`ยืนยันลบคิว #${p3(r.qNum)} — ${r.name} (${r.plate})?`))return;
+  // ลบจาก Firebase (real-time listener จะ sync REC อัตโนมัติ)
+  if(r._fbKey){
+    recRef(r).remove()
+      .then(()=>toast('ลบรายการแล้ว','ok'))
+      .catch(()=>toast('ลบไม่สำเร็จ ตรวจสอบการเชื่อมต่อ','err'));
+  } else {
+    REC=REC.filter(x=>x.id!==id);saveRec();
+    toast('ลบรายการแล้ว','ok');
+    refTbl();
+  }
+}
+
+/* ============================================================
+   EDIT MODAL
+============================================================ */
+function editRec(id){
+  const r=REC.find(x=>x.id===id);if(!r)return;
+  if(CU.role==='driver'&&r.user!==CU.username){toast('ไม่มีสิทธิ์แก้ไขคิวของผู้อื่น','err');return;}
+  const isStaff=(CU.role==='staff'||CU.role==='head');
+  document.getElementById('mTtl').textContent=`✏️ แก้ไขข้อมูลคิว #${p3(r.qNum)}`;
+  document.getElementById('mBody').innerHTML=`
+  <div class="form-grid" style="gap:14px">
+    <div class="ff"><label>ชื่อ-นามสกุลผู้ขับ</label><input type="text" id="en" value="${esc(r.name)}"/></div>
+    <div class="ff"><label>เบอร์โทรศัพท์</label><input type="tel" id="ep" value="${esc(r.ph)}" maxlength="10" inputmode="numeric"/></div>
+    <div class="ff"><label>บริษัทผู้ส่งสินค้า</label><input type="text" id="ec" value="${esc(r.co)}"/></div>
+    <div class="ff"><label>ทะเบียนรถ</label><input type="text" id="el" value="${esc(r.plate)}" autocapitalize="characters"/></div>
+    <div class="ff" style="grid-column:1/-1"><label>สาขาแม็คโครที่มาส่ง</label>
+      <select id="eb">${BR.map(b=>`<option value="${b.id}"${r.brId===b.id?' selected':''}>${b.id} — ${b.n}</option>`).join('')}</select>
+    </div>
+    <div class="ff" style="grid-column:1/-1"><label>ประเภทสินค้า</label>
+      <div class="g-chips" id="eCh">${GOODS.map(g=>`<div class="g-chip${r.gds===g.lb?' on':''}" data-g="${g.lb}">${g.ic} ${g.lb}</div>`).join('')}</div>
+      <input type="hidden" id="eg" value="${esc(r.gds)}"/>
+    </div>
+    ${isStaff?`<div class="ff" style="grid-column:1/-1"><label>สถานะ</label>
+      <select id="est">${STS.map(s=>`<option value="${s}"${r.sts===s?' selected':''}>${s}</option>`).join('')}</select>
+    </div>`:''}
+    <div class="ff" style="grid-column:1/-1"><label>หมายเหตุ</label><textarea id="enote">${esc(r.note||'')}</textarea></div>
+  </div>
+  <div class="form-acts" style="margin-top:20px">
+    <button class="btn btn-s" onclick="closeMod()">ยกเลิก</button>
+    <button class="btn btn-p" id="btnSvEd">💾 บันทึกการแก้ไข</button>
+  </div>`;
+
+  document.querySelectorAll('#eCh .g-chip').forEach(el=>{
+    el.addEventListener('click',()=>{
+      document.querySelectorAll('#eCh .g-chip').forEach(x=>x.classList.remove('on'));
+      el.classList.add('on');
+      document.getElementById('eg').value=el.dataset.g;
+    });
+  });
+  document.getElementById('btnSvEd').addEventListener('click',()=>saveEdit(id));
+  openMod();
+}
+
+function saveEdit(id){
+  const r=REC.find(x=>x.id===id);if(!r)return;
+  const name=v('en'),ph=v('ep'),co=v('ec'),plate=v('el'),brId=v('eb'),gds=v('eg'),note=v('enote');
+  if(!name||!ph||!co||!plate||!brId||!gds){toast('กรุณากรอกข้อมูลให้ครบ','err');return;}
+  r.name=name;r.ph=ph;r.co=co;r.plate=plate;
+  r.brId=brId;r.brN=(BR.find(b=>b.id===brId)||{n:brId}).n;
+  r.gds=gds;r.note=note;
+  const es=document.getElementById('est');if(es)r.sts=es.value;
+  saveRec();closeMod();
+  // Firebase update ข้อมูลทั้ง record
+  if(r._fbKey){
+    const {_fbKey,_fbBranch,...recData}=r;
+    recRef(r).set({...recData,_fbKey,...( _fbBranch?{_fbBranch}:{})});
+  }
+  toast('บันทึกการแก้ไขสำเร็จ','ok');
+  if(_tab==='queue_list')refTbl();
+  else if(_tab==='my_queue'){buildMine(document.getElementById('MC'));}
+  else if(_tab==='dashboard'){buildDash(document.getElementById('MC'));}
+  else if(_tab==='ho_dashboard'){buildHODash(document.getElementById('MC'));}
+}
+
+/* ============================================================
+   HEAD OFFICE DASHBOARD — ส่วนกลาง ตรวจสอบทุกสาขา
+   - กรองช่วงวันที่ / สาขา / สถานะ / ค้นหา
+   - สรุปภาพรวม + แยกรายสาขา + รายการละเอียด (แก้ไข/ลบได้)
+============================================================ */
+
+/* Head Office filter state (แยกจาก F ของสาขา) */
+const HF={d1:'',d2:'',br:'',st:'',s:'',view:'summary'}; // view: summary | detail
+
+function hoFiltered(){
+  let f=[...REC];
+  if(HF.d1) f=f.filter(r=>r.date>=HF.d1);
+  if(HF.d2) f=f.filter(r=>r.date<=HF.d2);
+  if(HF.br) f=f.filter(r=>r.brId===HF.br);
+  if(HF.st) f=f.filter(r=>r.sts===HF.st);
+  if(HF.s){
+    const s=HF.s.toLowerCase().trim();
+    f=f.filter(r=>(r.name||'').toLowerCase().includes(s)||(r.plate||'').toLowerCase().includes(s)||
+      (r.co||'').toLowerCase().includes(s)||(r.ph||'').includes(s)||(r.brId||'').includes(s));
+  }
+  return f.sort((a,b)=>b.id-a.id);
+}
+
+function buildHODash(mc){
+  // default: วันนี้ ถ้ายังไม่เคยตั้งค่า
+  if(HF.d1===''&&HF.d2===''){ HF.d1=isoAgo(6); HF.d2=isoToday(); }
+
+  const f=hoFiltered();
+  const total=f.length;
+  const w=f.filter(r=>r.sts==='รอเรียก').length;
+  const rv=f.filter(r=>r.sts==='กำลังรับสินค้า').length;
+  const dn=f.filter(r=>r.sts==='เสร็จสิ้น').length;
+  const nBr=new Set(f.map(r=>r.brId)).size;
+
+  // per-branch breakdown
+  const byBr={};
+  f.forEach(r=>{
+    if(!byBr[r.brId]) byBr[r.brId]={brId:r.brId,brN:r.brN||r.brId,total:0,w:0,rv:0,dn:0};
+    byBr[r.brId].total++;
+    if(r.sts==='รอเรียก')byBr[r.brId].w++;
+    else if(r.sts==='กำลังรับสินค้า')byBr[r.brId].rv++;
+    else if(r.sts==='เสร็จสิ้น')byBr[r.brId].dn++;
+  });
+  const brRows=Object.values(byBr).sort((a,b)=>b.total-a.total);
+
+  // goods breakdown
+  const gc={};f.forEach(r=>{gc[r.gds]=(gc[r.gds]||0)+1;});
+
+  mc.innerHTML=`
+  <div class="page-hd"><h2>🏢 Dashboard ส่วนกลาง — ตรวจสอบทุกสาขา</h2>
+    <p>ภาพรวมคิวขนส่งทุกสาขา · เลือกช่วงเวลาและสาขาที่ต้องการตรวจสอบได้</p></div>
+
+  <!-- FILTER PANEL -->
+  <div class="ho-filter">
+    <div class="ho-filter-row">
+      <div class="ho-fld"><label>📅 ตั้งแต่วันที่</label><input type="date" id="hoD1" class="date-in" value="${HF.d1}"/></div>
+      <div class="ho-fld"><label>📅 ถึงวันที่</label><input type="date" id="hoD2" class="date-in" value="${HF.d2}"/></div>
+      <div class="ho-fld"><label>📍 สาขา</label>
+        <select id="hoBr" class="flt-sel">
+          <option value="">ทุกสาขา (${BR.length} สาขา)</option>
+          ${BR.map(b=>`<option value="${b.id}"${HF.br===b.id?' selected':''}>${b.id} — ${b.n.replace('บมจ.ซีพี แอ็กซ์ตร้า สาขา','')}</option>`).join('')}
+        </select>
+      </div>
+      <div class="ho-fld"><label>🚦 สถานะ</label>
+        <select id="hoSt" class="flt-sel">
+          <option value="">ทุกสถานะ</option>
+          ${STS.map(s=>`<option value="${s}"${HF.st===s?' selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="ho-fld" style="flex:1;min-width:160px"><label>🔍 ค้นหา</label>
+        <div class="srch-box" style="max-width:none"><input type="text" id="hoS" placeholder="ชื่อ, ทะเบียน, บริษัท, รหัสสาขา..." value="${esc(HF.s)}"/></div>
+      </div>
+    </div>
+    <div class="ho-filter-acts">
+      <button class="btn btn-s btn-sm" id="hoClr">🔄 ล้างตัวกรอง</button>
+      <button class="btn btn-s btn-sm" id="hoToday">📆 วันนี้</button>
+      <button class="btn btn-s btn-sm" id="ho7d">7 วันล่าสุด</button>
+      <button class="btn btn-s btn-sm" id="ho30d">30 วันล่าสุด</button>
+      <span style="flex:1"></span>
+      <button class="btn btn-g btn-sm" id="hoExp">📥 Export Excel</button>
+    </div>
+  </div>
+
+  <!-- SUMMARY STATS -->
+  <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
+    <div class="stat c-blue"><div class="stat-lbl">คิวทั้งหมด</div><div class="stat-val">${total}</div><div class="stat-sub">รายการ</div></div>
+    <div class="stat c-indigo"><div class="stat-lbl">จำนวนสาขา</div><div class="stat-val">${nBr}</div><div class="stat-sub">สาขาที่มีคิว</div></div>
+    <div class="stat c-orange"><div class="stat-lbl">รอเรียก</div><div class="stat-val">${w}</div><div class="stat-sub">รายการ</div></div>
+    <div class="stat" style="border-top-color:#1E40AF"><div class="stat-lbl">กำลังรับสินค้า</div><div class="stat-val">${rv}</div><div class="stat-sub">รายการ</div></div>
+    <div class="stat c-green"><div class="stat-lbl">เสร็จสิ้น</div><div class="stat-val">${dn}</div><div class="stat-sub">รายการ</div></div>
+  </div>
+
+  <!-- VIEW TOGGLE -->
+  <div class="ho-tabs">
+    <button class="ho-tab${HF.view==='summary'?' on':''}" data-hoview="summary">📊 สรุปรายสาขา</button>
+    <button class="ho-tab${HF.view==='detail'?' on':''}" data-hoview="detail">📋 รายการละเอียด (${total})</button>
+  </div>
+
+  <div id="hoContent"></div>`;
+
+  renderHOContent(brRows,gc,f);
+
+  /* events */
+  qsel('hoD1').addEventListener('change',e=>{HF.d1=e.target.value;buildHODash(mc);});
+  qsel('hoD2').addEventListener('change',e=>{HF.d2=e.target.value;buildHODash(mc);});
+  qsel('hoBr').addEventListener('change',e=>{HF.br=e.target.value;buildHODash(mc);});
+  qsel('hoSt').addEventListener('change',e=>{HF.st=e.target.value;buildHODash(mc);});
+  let _hoTmr;
+  qsel('hoS').addEventListener('input',e=>{HF.s=e.target.value;clearTimeout(_hoTmr);_hoTmr=setTimeout(()=>buildHODash(mc),250);});
+  qsel('hoClr').addEventListener('click',()=>{HF.br='';HF.st='';HF.s='';HF.d1=isoAgo(6);HF.d2=isoToday();buildHODash(mc);});
+  qsel('hoToday').addEventListener('click',()=>{HF.d1=isoToday();HF.d2=isoToday();buildHODash(mc);});
+  qsel('ho7d').addEventListener('click',()=>{HF.d1=isoAgo(6);HF.d2=isoToday();buildHODash(mc);});
+  qsel('ho30d').addEventListener('click',()=>{HF.d1=isoAgo(29);HF.d2=isoToday();buildHODash(mc);});
+  qsel('hoExp').addEventListener('click',hoExport);
+  mc.querySelectorAll('[data-hoview]').forEach(b=>b.addEventListener('click',()=>{HF.view=b.dataset.hoview;buildHODash(mc);}));
+}
+
+function renderHOContent(brRows,gc,f){
+  const box=document.getElementById('hoContent');
+  if(!box) return;
+
+  if(HF.view==='summary'){
+    // goods chips
+    const goodsHtml=Object.keys(gc).length===0?'<p style="color:var(--TX3);font-size:14px">ไม่มีข้อมูล</p>'
+      :`<div style="display:flex;flex-wrap:wrap;gap:10px">${Object.entries(gc).sort((a,b)=>b[1]-a[1]).map(([g,c])=>`
+        <div style="display:flex;align-items:center;gap:8px;background:var(--PL);padding:10px 14px;border-radius:10px">
+          <span style="font-size:20px">${gIco(g)}</span>
+          <div><div style="font-size:20px;font-weight:800;color:var(--PD);font-family:'Kanit',sans-serif;line-height:1">${c}</div>
+          <div style="font-size:12px;color:var(--TX2)">${g}</div></div></div>`).join('')}</div>`;
+
+    const mxBr=Math.max(...brRows.map(b=>b.total),1);
+
+    box.innerHTML=`
+    <div class="chart-card">
+      <div class="chart-hd"><h3>🏷️ ประเภทสินค้า (ตามตัวกรอง)</h3></div>
+      ${goodsHtml}
+    </div>
+    <div class="table-card">
+      <div class="table-toolbar"><div class="tbar-r1"><strong style="font-family:'Kanit',sans-serif">📊 สรุปแยกรายสาขา (${brRows.length} สาขา)</strong></div></div>
+      <div class="tbl-wrap">
+      ${brRows.length===0?`<div class="empty"><div class="ei">📭</div><p>ไม่พบข้อมูลในช่วงที่เลือก</p></div>`:`
+        <table>
+          <thead><tr><th>สาขา</th><th>ปริมาณคิว</th><th>ทั้งหมด</th><th>🟡 รอเรียก</th><th>🔵 กำลังรับ</th><th>🟢 เสร็จสิ้น</th><th></th></tr></thead>
+          <tbody>${brRows.map(b=>`<tr>
+            <td><span class="br-tag">${b.brId}</span><br><small style="color:var(--TX3)">${esc(b.brN.replace('บมจ.ซีพี แอ็กซ์ตร้า สาขา',''))}</small></td>
+            <td style="min-width:120px"><div style="background:var(--PG);height:18px;border-radius:5px;width:${Math.round((b.total/mxBr)*100)}%;min-width:18px"></div></td>
+            <td><strong style="font-size:16px;color:var(--PD)">${b.total}</strong></td>
+            <td>${b.w}</td><td>${b.rv}</td><td>${b.dn}</td>
+            <td><button class="btn btn-s btn-xs" data-brdetail="${b.brId}">ดู →</button></td>
+          </tr>`).join('')}</tbody>
+        </table>`}
+      </div>
+    </div>`;
+
+    box.querySelectorAll('[data-brdetail]').forEach(btn=>btn.addEventListener('click',()=>{
+      HF.br=btn.dataset.brdetail;HF.view='detail';buildHODash(document.getElementById('MC'));
+    }));
+
+  } else {
+    // DETAIL view — full records table with edit/delete
+    box.innerHTML=`
+    <div class="table-card">
+      <div class="tbl-wrap" id="hoTblWrap"></div>
+    </div>`;
+    const wrap=document.getElementById('hoTblWrap');
+    if(f.length===0){
+      wrap.innerHTML=`<div class="empty"><div class="ei">📭</div><p>ไม่พบรายการที่ตรงกับเงื่อนไข</p></div>`;
+      return;
+    }
+    wrap.innerHTML=`<table>
+      <thead><tr>
+        <th>คิว</th><th>วันที่/เวลา</th><th>สาขา</th><th>ชื่อผู้ขับ</th><th>เบอร์โทร</th>
+        <th>ทะเบียน</th><th>บริษัท</th><th>สินค้า</th><th>สถานะ</th><th>หมายเหตุ</th><th>จัดการ</th>
+      </tr></thead>
+      <tbody id="hoTblBody"></tbody>
+    </table>`;
+    const tbody=document.getElementById('hoTblBody');
+    f.forEach(r=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td><span class="q-bdg">${p3(r.qNum)}</span></td>
+        <td style="white-space:nowrap"><strong>${fmtD(r.date)}</strong><br><small style="color:var(--TX3)">⏰ ${r.tm}</small></td>
+        <td><span class="br-tag">${r.brId}</span><br><small style="color:var(--TX3)">${esc((r.brN||'').replace('บมจ.ซีพี แอ็กซ์ตร้า สาขา',''))}</small></td>
+        <td><strong>${esc(r.name)}</strong></td>
+        <td style="white-space:nowrap">${esc(r.ph)}</td>
+        <td><strong>${esc(r.plate)}</strong></td>
+        <td style="max-width:140px">${esc(r.co)}</td>
+        <td><span class="g-tag">${gIco(r.gds)} ${esc(r.gds)}</span></td>
+        <td><select class="sts-sel">${STS.map(s=>`<option value="${s}"${r.sts===s?' selected':''}>${s}</option>`).join('')}</select></td>
+        <td style="max-width:110px;font-size:11px;color:var(--TX3)">${esc(r.note||'—')}</td>
+        <td><div class="acts">
+          <button class="btn btn-s btn-xs" data-edit="${r.id}">✏️</button>
+          <button class="btn btn-d btn-xs" data-del="${r.id}">🗑️</button>
+        </div></td>`;
+      tr.querySelector('.sts-sel').addEventListener('change',e=>updSts(r.id,e.target.value));
+      tr.querySelector('[data-edit]').addEventListener('click',()=>editRec(r.id));
+      tr.querySelector('[data-del]').addEventListener('click',()=>delRec(r.id));
+      tbody.appendChild(tr);
+    });
+  }
+}
+
+function hoExport(){
+  const f=hoFiltered();
+  const ws=[
+    ['คิว','วันที่','เวลา','รหัสสาขา','ชื่อสาขา','ชื่อผู้ขับ','เบอร์โทร','ทะเบียนรถ','บริษัท','ประเภทสินค้า','สถานะ','หมายเหตุ'],
+    ...f.map(r=>[p3(r.qNum),fmtD(r.date),r.tm,r.brId,r.brN,r.name,r.ph,r.plate,r.co,r.gds,r.sts,r.note||''])
+  ];
+  const wb=XLSX.utils.book_new();
+  const sheet=XLSX.utils.aoa_to_sheet(ws);
+  sheet['!cols']=[8,14,8,10,24,22,14,14,24,18,16,26].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,sheet,'รายงานทุกสาขา');
+  const range=`${HF.d1||'all'}_${HF.d2||'all'}`;
+  XLSX.writeFile(wb,`Makro_HeadOffice_${range}.xlsx`);
+  toast(`Export Excel สำเร็จ (${f.length} รายการ)`,'ok');
+}
+
+/* ============================================================
+   EXPORT EXCEL
+============================================================ */
+function doExport(){
+  const f=filteredRec();
+  const ws=[
+    ['คิว','วันที่','เวลา','ชื่อผู้ขับ','เบอร์โทร','ทะเบียนรถ','บริษัท','รหัสสาขา','ชื่อสาขา','ประเภทสินค้า','สถานะ','หมายเหตุ'],
+    ...f.map(r=>[p3(r.qNum),fmtD(r.date),r.tm,r.name,r.ph,r.plate,r.co,r.brId,r.brN,r.gds,r.sts,r.note||''])
+  ];
+  const wb=XLSX.utils.book_new();
+  const sheet=XLSX.utils.aoa_to_sheet(ws);
+  sheet['!cols']=[8,14,8,22,14,14,24,10,22,18,16,26].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,sheet,'คิวขนส่งสินค้า');
+  XLSX.writeFile(wb,`Makro_Queue_${isoToday()}.xlsx`);
+  toast(`Export Excel สำเร็จ (${f.length} รายการ)`,'ok');
+}
+
+/* ============================================================
+   HELPERS
+============================================================ */
+function v(id){return (document.getElementById(id)?.value||'').trim();}
+function qsel(id){return document.getElementById(id);}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+const GMAP={'ผักและผลไม้':'🥦','หมู':'🐷','ปลา':'🐟','เบเกอรี่':'🥐','อาหารแช่แข็ง':'🧊','ของใช้ในบ้าน':'🧴','เครื่องดื่ม':'🥤','สินค้าแห้ง':'📦','อื่นๆ':'❓'};
+function gIco(g){return GMAP[g]||'📦';}
+function sCls(s){return s==='รอเรียก'?'s-w':s==='กำลังรับสินค้า'?'s-r':'s-d';}
+function sDot(s){return s==='รอเรียก'?'🟡':s==='กำลังรับสินค้า'?'🔵':'🟢';}
+function openMod(){document.getElementById('MOV').classList.add('open');}
+function closeMod(){document.getElementById('MOV').classList.remove('open');}
+document.getElementById('MOV').addEventListener('click',e=>{if(e.target===e.currentTarget)closeMod();});
+
+let _tTimer;
+function toast(msg,type='ok'){
+  const t=document.getElementById('toast');
+  t.className=`toast ${type}`;
+  document.getElementById('tMsg').textContent=msg;
+  t.classList.add('show');
+  clearTimeout(_tTimer);
+  _tTimer=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+/* ============================================================
+   LOADING INDICATOR — แสดงระหว่างรอ Firebase โหลด
+============================================================ */
+// เรียกจาก setupFirebase หลัง login
+function showLoadingUntilFbReady(){
+  const overlay = document.createElement('div');
+  overlay.id = 'fbLoading';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(255,255,255,.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;font-family:Sarabun,sans-serif;';
+  overlay.innerHTML = `
+    <div style="width:48px;height:48px;border:4px solid #e6f0ff;border-top:4px solid #E8231A;border-radius:50%;animation:spin .8s linear infinite"></div>
+    <div style="font-size:15px;font-weight:700;background:linear-gradient(135deg,#E8152A,#F55A1E);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">กำลังเชื่อมต่อฐานข้อมูล...</div>
+    <div style="font-size:13px;color:#8493B0">Firebase Realtime Database</div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>`;
+  document.body.appendChild(overlay);
+  // ซ่อน overlay เมื่อ Firebase โหลดเสร็จ (ตรวจทุก 200ms)
+  const check = setInterval(()=>{
+    if(_fbLoaded){ clearInterval(check); overlay.style.opacity='0'; overlay.style.transition='opacity .4s'; setTimeout(()=>overlay.remove(),400); }
+  },200);
+  // timeout 10 วินาที กรณีไม่มีอินเทอร์เน็ต → ใช้ข้อมูล local
+  setTimeout(()=>{
+    if(!_fbLoaded){
+      clearInterval(check);
+      _fbLoaded=true;
+      REC=JSON.parse(localStorage.getItem('mkq5_'+(CU?CU.brId:'x'))||'[]');
+      overlay.innerHTML=`<div style="font-size:15px;font-weight:700;color:#EF4444">⚠️ ไม่สามารถเชื่อมต่อได้</div><div style="font-size:13px;color:#8493B0">ใช้ข้อมูลล่าสุดที่บันทึกไว้</div>`;
+      setTimeout(()=>{ overlay.style.opacity='0'; overlay.style.transition='opacity .4s'; setTimeout(()=>overlay.remove(),400); },2000);
+    }
+  },10000);
+}
+</script>
+</body>
+</html>
